@@ -1,0 +1,8 @@
+[package]
+name = "freqk"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.3.19", features = ["env", "derive"] }
+rust-htslib = "0.46.0"
