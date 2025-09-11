@@ -6,7 +6,11 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 1. Reference path in fasta format
 
-2. VCF file of variants called against reference, should be phased and non-overlapping
+2. Index of fasta file `samtools faidx <ref fasta>`
+
+3. bgzipped VCF file of variants called against reference, variants should be phased and non-overlapping
+
+4. Index of vcf file
 
 ## Usage
 
