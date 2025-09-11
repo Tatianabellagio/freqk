@@ -7,6 +7,8 @@ use std::io::{Write, BufWriter};
 use bio::bio_types::genome::AbstractLocus;
 use std::io::{self, prelude::*, BufReader};
 use std::collections::HashSet;
+use kseq::parse_path;
+use std::collections::HashMap;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -37,6 +39,8 @@ enum Commands {
         reads: String,
         #[arg(long)]
         output: String,
+        #[arg(long)]
+        k: i64,
     },
     /// Lists all users
     Call {
@@ -227,8 +231,45 @@ fn build_kmer_hashset(index: &String) -> Result<HashSet<String>, io::Error> {
 // loop over reads and get canonical kmers
 // only count k-mer if its in hashset
 // save output to k-mer counts file
-// fn count_target_kmers_in_reads(kmers_hashset, reads) -> {
-// }
+fn count_target_kmers_in_reads(kmers_hashset: HashSet<String>, reads: &String, k: i64) -> HashMap<String, usize> {
+    println!("Counting k-mers in reads...");
+    let mut kmer_counts: HashMap<String, usize> = HashMap::new();
+    let mut records = parse_path(reads).unwrap();
+	// let mut records = parse_reader(File::open(path).unwrap()).unwrap();
+	while let Some(record) = records.iter_record().unwrap() {
+		//println!("head:{} des:{} seq:{} qual:{} len:{}", 
+		//	record.head(), record.des(), record.seq(), 
+		//	record.qual(), record.len());
+        let read_kmers = get_canonical_kmers(record.seq(), k.try_into().unwrap());
+        for read_kmer in &read_kmers{
+            if kmers_hashset.contains(read_kmer) {
+                //println!("kmer is in hashset!");
+                let count = kmer_counts.entry(read_kmer.to_string()).or_insert(0);
+                *count += 1; // Increment the count
+            }
+        }
+	}
+    kmer_counts
+}
+
+
+
+
+// write k-mer counts to file
+fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::Result<()> {
+    println!("Writing k-mer counts to {}", output);
+    // Open the file for writing
+    let mut file = File::create(output)?;
+
+    // Iterate over the HashMap and write each entry to the file
+    for (key, value) in kmer_counts.iter() {
+        writeln!(file, "{}\t{}", key, value)?;
+    }
+
+    println!("Counts successfully written to {}", output);
+
+    Ok(())
+}
 
 
 fn main() {
@@ -239,13 +280,14 @@ fn main() {
             println!("fasta: {}, vcf: {}, k: {}", fasta, vcf, k);
             insert_var(vcf, fasta, output, k);
         }
-        Commands::Count { index, reads, output } => {
-            println!("Counting k-mers: {}, {}, {}", index, reads, output);
-            build_kmer_hashset(index);
+        Commands::Count { index, reads, k, output } => {
+            println!("Counting k-mers: {}, {}, {}, {}", index, reads, k, output);
+            let kmer_hashset = build_kmer_hashset(index);
+            let kmer_counts = count_target_kmers_in_reads(kmer_hashset.expect("Error creating target kmer hashset"), reads, *k);
+            write_kmers(kmer_counts, output);
         }
         Commands::Call { counts, output } => {
             println!("Converting counts to allele frequencies... {}, {}", counts, output);
-            // Logic to list users
         }
     }
 }
