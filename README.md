@@ -20,8 +20,14 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 2. Count the k-mers specified in the index
 
-3. Convert k-mer counts to allele frequencies
+`freqk count --index index.txt --reads tests/1_R1.fastq tests/1_R2.fastq --output counts.txt`
+
+3. Call allele frequences based on k-mer counts
+
+`freqk call --index index.txt --counts counts.txt --output calls.txt`
 
 ## To-do
+
+- [ ] when indexing, count number of k-mers for each allele
 
 - [ ] for count subcommand: load in k-mers from index as hash set, loop over input reads with a fastx iterator, slide window to get k-mers, only count k-mers if they're in the hash set
