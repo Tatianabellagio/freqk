@@ -1,8 +1,9 @@
 [package]
 name = "freqk"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bio = "2.3.0"
 clap = { version = "4.3.19", features = ["env", "derive"] }
 rust-htslib = "0.46.0"
