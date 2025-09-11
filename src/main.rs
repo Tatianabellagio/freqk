@@ -5,6 +5,8 @@ use bio::io::fasta::IndexedReader;
 use std::fs::File;
 use std::io::{Write, BufWriter};
 use bio::bio_types::genome::AbstractLocus;
+use std::io::{self, prelude::*, BufReader};
+use std::collections::HashSet;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -159,6 +161,76 @@ fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &
     None
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// read index by line
+fn build_kmer_hashset(index: &String) -> Result<HashSet<String>, io::Error> {
+
+    println!("Loading index at {} into a hashset...", index);
+
+    // open index
+    let file = File::open(index)?;
+    let reader = BufReader::new(file);
+
+    // HashSet to store all k-mers
+    let mut kmers_hashset: HashSet<String> = HashSet::new();
+
+    for line_result in reader.lines() {
+        //println!("{}", &line?);
+        let line = line_result?; // Handle potential errors reading the line
+        let fields: Vec<&str> = line.split(',').collect();
+        //let parts: Vec<&str> = line?.split(',').collect();
+        let kmers = fields[6];
+        let kmers_list: Vec<&str> = kmers.split('|').collect();
+        
+        let kmers_by_allele: Vec<Vec<&str>> = kmers_list
+        .iter()
+        .map(|s| s.split(';').collect())
+        .collect();
+        
+        let kmers_all: Vec<&str> = kmers_by_allele
+        .into_iter() // Consumes the outer Vec and produces an iterator over inner Vecs
+        .flatten()   // Flattens the iterator of inner Vecs into an iterator of &str
+        .collect();
+
+        // convert to owned strings
+        let kmers_string: Vec<String> = kmers_all.iter().map(|s| s.to_string()).collect();
+
+        // Extend the HashSet with elements from the vector
+        kmers_hashset.extend(kmers_string.iter().cloned());
+        
+        //let mut kmers: Vec<&str> = kmers.split('|').collect();
+        //let kmers_list: Vec<&str> = kmers.split(';').collect();
+        //let kmers_list: Vec<&str> = kmers_list.split('|').collect();
+        //println!("{:?}", kmers_hashset);
+    }
+
+    Ok(kmers_hashset)
+}
+
+
+// input hashset of kmers, path to reads
+// loop over reads and get canonical kmers
+// only count k-mer if its in hashset
+// save output to k-mer counts file
+// fn count_target_kmers_in_reads(kmers_hashset, reads) -> {
+// }
+
+
 fn main() {
     let cli = Cli::parse();
 
@@ -168,11 +240,11 @@ fn main() {
             insert_var(vcf, fasta, output, k);
         }
         Commands::Count { index, reads, output } => {
-            println!("Deleting user with ID: {}, {}, {}", index, reads, output);
-            // Logic to delete a user
+            println!("Counting k-mers: {}, {}, {}", index, reads, output);
+            build_kmer_hashset(index);
         }
         Commands::Call { counts, output } => {
-            println!("Listing all users... {}, {}", counts, output);
+            println!("Converting counts to allele frequencies... {}, {}", counts, output);
             // Logic to list users
         }
     }
