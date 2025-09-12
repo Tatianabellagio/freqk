@@ -35,8 +35,8 @@ enum Commands {
     Count {
         #[arg(long)]
         index: String,
-        #[arg(long)]
-        reads: String,
+        #[arg(long, value_delimiter = ',', value_name = "FILE")]
+        reads: Vec<String>,
         #[arg(long)]
         output: String,
         #[arg(long)]
@@ -231,15 +231,20 @@ fn build_kmer_hashset(index: &String) -> Result<HashSet<String>, io::Error> {
 // loop over reads and get canonical kmers
 // only count k-mer if its in hashset
 // save output to k-mer counts file
-fn count_target_kmers_in_reads(kmers_hashset: HashSet<String>, reads: &String, k: i64) -> HashMap<String, usize> {
-    println!("Counting k-mers in reads...");
+fn count_target_kmers_in_reads(kmers_hashset: HashSet<String>, reads: &Vec<String>, k: i64) -> HashMap<String, usize> {
     let mut kmer_counts: HashMap<String, usize> = HashMap::new();
-    let mut records = parse_path(reads).unwrap();
+    for read_set in reads{
+    println!("Counting k-mers in {}...", read_set);
+    let mut records = parse_path(read_set).unwrap();
+    let mut i = 0;
 	// let mut records = parse_reader(File::open(path).unwrap()).unwrap();
 	while let Some(record) = records.iter_record().unwrap() {
 		//println!("head:{} des:{} seq:{} qual:{} len:{}", 
 		//	record.head(), record.des(), record.seq(), 
 		//	record.qual(), record.len());
+        if i % 10_000 == 0 {
+            println!("Reads processed: {}", i);
+        }
         let read_kmers = get_canonical_kmers(record.seq(), k.try_into().unwrap());
         for read_kmer in &read_kmers{
             if kmers_hashset.contains(read_kmer) {
@@ -248,7 +253,9 @@ fn count_target_kmers_in_reads(kmers_hashset: HashSet<String>, reads: &String, k
                 *count += 1; // Increment the count
             }
         }
+        i += 1;
 	}
+    }
     kmer_counts
 }
 
@@ -272,6 +279,66 @@ fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::Resu
 }
 
 
+// turn k-mer counts into totals per allele
+// should reflect underlying allele frequencies
+fn combine_counts_by_allele(index: &String, counts: HashMap<String, usize>) -> Result<Vec<String>, io::Error> {
+
+    println!("Combining counts by allele...");
+
+    //let optional_value: Option<&usize> = Some(&5);
+
+    // open index
+    let file = File::open(index)?;
+    let reader = BufReader::new(file);
+
+    let mut result = Vec::new();
+
+    for line_result in reader.lines() {
+        //println!("{}", &line?);
+        let line = line_result?; // Handle potential errors reading the line
+        let fields: Vec<&str> = line.split(',').collect();
+        //let parts: Vec<&str> = line?.split(',').collect();
+        let kmers = fields[6];
+        let kmers_list: Vec<&str> = kmers.split('|').collect();
+
+        let kmers_by_allele: Vec<Vec<&str>> = kmers_list
+        .iter()
+        .map(|s| s.split(';').collect())
+        .collect();
+
+        //println!("{:?}", kmers_by_allele);
+
+        let mut counts_by_allele = Vec::new();
+
+        for allele in kmers_by_allele{
+            let mut total_allele_count: usize = 0;
+            for kmer in allele{
+                //println!("{:?}", kmer);
+                //let kmer_count = counts.get(kmer);
+                //match another_optional_value {
+                //    Some(kmer_count) => total_allele_count += *kmer_count,
+                //    None => {
+                        // Handle the case where the Option is None, e.g., do nothing or add a default value
+                //        println!("No value to add.");
+                //    }
+                //}
+                if let Some(kmer_count) = counts.get(kmer) {
+                    total_allele_count += *kmer_count;
+                }
+            }
+            counts_by_allele.push(total_allele_count);
+        }
+        
+        let counts_by_allele_str = counts_by_allele.iter().map(|num| num.to_string()).collect::<Vec<String>>().join("|");
+        
+        result.push(counts_by_allele_str);
+    }
+    Ok(result)
+}
+
+
+
+// bring it all together!
 fn main() {
     let cli = Cli::parse();
 
@@ -281,10 +348,12 @@ fn main() {
             insert_var(vcf, fasta, output, k);
         }
         Commands::Count { index, reads, k, output } => {
-            println!("Counting k-mers: {}, {}, {}, {}", index, reads, k, output);
+            println!("Counting k-mers: {}, {:?}, {}, {}", index, reads, k, output);
             let kmer_hashset = build_kmer_hashset(index);
             let kmer_counts = count_target_kmers_in_reads(kmer_hashset.expect("Error creating target kmer hashset"), reads, *k);
-            write_kmers(kmer_counts, output);
+            write_kmers(kmer_counts.clone(), output);
+            let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
+            println!("{:?}", counts_by_allele);
         }
         Commands::Call { counts, output } => {
             println!("Converting counts to allele frequencies... {}, {}", counts, output);
