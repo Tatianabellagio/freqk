@@ -20,7 +20,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Creates a new user
+    /// Get k-mers specific to each allele of each variant
     Index {
         #[arg(long)]
         fasta: String,
@@ -31,7 +31,7 @@ enum Commands {
         #[arg(long)]
         k: i64,
     },
-    /// Deletes an existing user
+    /// Count k-mers by allele
     Count {
         #[arg(long)]
         index: String,
@@ -42,7 +42,7 @@ enum Commands {
         #[arg(long)]
         k: i64,
     },
-    /// Lists all users
+    /// Convert k-mer counts to an allele frequency
     Call {
         #[arg(long)]
         counts: String,
@@ -115,9 +115,9 @@ fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &
         }
 
         // move the pointer in the index to the desired sequence and interval
-        let pos = record.pos();
+        let pos = record.pos() - 1;
         let chrom = record.contig();
-        faidx.fetch(chrom, (pos - k).try_into().unwrap(), (pos + k).try_into().unwrap() ).expect("Couldn't fetch interval");
+        faidx.fetch(chrom, (pos - k + 1).try_into().unwrap(), (pos + k).try_into().unwrap() ).expect("Couldn't fetch interval");
 
         // read the subsequence defined by the interval into a vector
         let mut seq = Vec::new();
@@ -132,12 +132,14 @@ fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &
         //let max_len = get_max_allele_length(alleles_list);
 
         // insert alleles into reference sequence to get variable sequences 
+        // replace reference allele with variant allele
         let mut var_seqs = Vec::new();
         let ku = *k as usize;
+        let ref_allele_len = alleles_list[0].len();
 
         for allele in &alleles_list {
             let mut var_seq = seq_string.clone();
-            var_seq.replace_range(ku..ku+alleles_list[0].len(), allele);
+            var_seq.replace_range(ku..ku+ref_allele_len, allele);
             var_seqs.push(var_seq);
         }
 
@@ -149,7 +151,8 @@ fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &
         // get k-mers
         let mut joined_kmers_list = Vec::new();
         for var_seq in &var_seqs {
-            let kmer_list: Vec<String> = get_canonical_kmers(var_seq, ku);
+            let mut kmer_list: Vec<String> = get_canonical_kmers(var_seq, ku);
+            let removed_element = kmer_list.remove(0); // DROPING FIRST K-MER BECAUSE ITS SHARED BETWEEN VARIANTS, NEED TO REWRITE TO KEEP ONLY UNIQUE K-MERS ACROSS ALL VARIANT SEQUENCES
             let joined_kmers = kmer_list.join(";");
             joined_kmers_list.push(joined_kmers);
         }
@@ -164,21 +167,6 @@ fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &
     }
     None
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 // read index by line
@@ -260,8 +248,6 @@ fn count_target_kmers_in_reads(kmers_hashset: HashSet<String>, reads: &Vec<Strin
 }
 
 
-
-
 // write k-mer counts to file
 fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::Result<()> {
     println!("Writing k-mer counts to {}", output);
@@ -278,6 +264,23 @@ fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::Resu
     Ok(())
 }
 
+
+fn write_counts_by_allele(counts_by_allele: Vec<String>, output: &String) -> io::Result<()>{
+
+    println!("Writing counts by allele to {}", output);
+    // Open the file for writing
+    let mut file = File::create(output)?;
+
+    // Iterate over the HashMap and write each entry to the file
+    for element in counts_by_allele.iter() {
+        writeln!(file, "{}", element)?;
+    }
+
+    println!("Counts successfully written.");
+
+    Ok(())
+
+}
 
 // turn k-mer counts into totals per allele
 // should reflect underlying allele frequencies
@@ -326,6 +329,7 @@ fn combine_counts_by_allele(index: &String, counts: HashMap<String, usize>) -> R
                     total_allele_count += *kmer_count;
                 }
             }
+            //println!("Next allele...");
             counts_by_allele.push(total_allele_count);
         }
         
@@ -351,9 +355,10 @@ fn main() {
             println!("Counting k-mers: {}, {:?}, {}, {}", index, reads, k, output);
             let kmer_hashset = build_kmer_hashset(index);
             let kmer_counts = count_target_kmers_in_reads(kmer_hashset.expect("Error creating target kmer hashset"), reads, *k);
-            write_kmers(kmer_counts.clone(), output);
+            //write_kmers(kmer_counts.clone(), output);
             let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
-            println!("{:?}", counts_by_allele);
+            //println!("{:?}", counts_by_allele);
+            let _ = write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), output);
         }
         Commands::Call { counts, output } => {
             println!("Converting counts to allele frequencies... {}, {}", counts, output);
