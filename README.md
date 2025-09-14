@@ -16,7 +16,7 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 1. Index the panel of reference variants
 
-`freqk index --vcf tests/1.vcf.gz --fasta tests/1.fasta --k 31 --output index.txt`
+`freqk index --vcf tests/1.vcf.gz --fasta tests/1.fasta -k 31 --output index.txt`
 
 2. Count the k-mers specified in the index
 
@@ -28,6 +28,8 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## To-do
 
-- [ ] when indexing, count number of k-mers for each allele
+- [x] determine k-mer length from index
 
-- [ ] for count subcommand: load in k-mers from index as hash set, loop over input reads with a fastx iterator, slide window to get k-mers, only count k-mers if they're in the hash set
+- [x] when indexing, count number of k-mers for each allele
+
+- [x] for count subcommand: load in k-mers from index as hash set, loop over input reads with a fastx iterator, slide window to get k-mers, only count k-mers if they're in the hash set
