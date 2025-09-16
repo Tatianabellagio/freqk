@@ -28,6 +28,12 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## To-do
 
+- [ ] organize code into modules
+
+- [ ] convert counts into allele frequencies
+
+- [ ] dedeuplicate index: remove any k-mers that are shared across variants
+
 - [x] determine k-mer length from index
 
 - [x] when indexing, count number of k-mers for each allele

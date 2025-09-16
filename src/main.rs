@@ -31,6 +31,12 @@ enum Commands {
         #[arg(short,long, help = "kmer length")]
         kmer: i64,
     },
+    /// Deduplicate index: remove k-mers shared across variants
+    Dedup {
+        #[arg(short,long, help = "name of index files")]
+        index: String,
+
+    },
     /// Count k-mers by allele
     Count {
         #[arg(short,long, help = "name of index files")]
@@ -119,6 +125,62 @@ fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
     data
 }
 
+
+// look across variants to find shared kmers
+fn find_dup_kmers_across_var(index: &String) -> Result<Vec<Vec<Vec<String>>>, io::Error> {
+    // open index
+    let file = File::open(index)?;
+    let reader = BufReader::new(file);
+
+    let mut data = Vec::new();
+
+    for line_result in reader.lines() {
+        //println!("{}", &line?);
+        let line = line_result?; // Handle potential errors reading the line
+        let fields: Vec<&str> = line.split(',').collect();
+        let kmers = fields[7];
+        let kmers_list: Vec<&str> = kmers.split('|').collect();
+
+        let kmers_by_allele: Vec<Vec<String>> = kmers_list
+        .iter()
+        .map(|s| s.split(';').map(|x| x.to_string()).collect())
+        .collect();
+
+        data.push(kmers_by_allele);
+    }
+
+    // first pass: count how many times k-mers are found across alleles
+    let mut counts: HashMap<String, usize> = HashMap::new();
+
+    for inner_vec in &data {
+        for inner_inner_vec in inner_vec {
+            for s in inner_inner_vec{
+                *counts.entry(s.to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // identify k-mers found more than once
+    let dup_kmers: Vec<String> = counts
+        .into_iter() // Get an iterator over key-value pairs
+        .filter(|(_key, value)| *value > 1) // Filter pairs where value > 1
+        .map(|(key, _value)| key) // Map to get only the keys
+        .collect(); // Collect the keys into a Vec
+
+    let dup_kmers_hashset: HashSet<String> = dup_kmers.into_iter().collect();
+
+    // second pass: remove any k-mers that were duplicated
+    for inner_vec in &mut data {
+        for inner_inner_vec in inner_vec{
+            inner_inner_vec.retain(|s| !dup_kmers_hashset.contains(s));
+        }
+    }
+
+    Ok(data)
+
+    // rewrite index with deduped k-mers
+
+}
 
 // insert variant into reference, get k-mers for each variant
 fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &i64) -> Option<Vec<i32>> {
@@ -383,7 +445,7 @@ fn k_from_index(index: &String) -> Result<i64, io::Error> {
     // Access the first element of that inner vector
     let first_element = first_inner_vec[0];
 
-    Ok(first_element.len() as i64)
+    return Ok(first_element.len() as i64);
 }
 
 
@@ -407,6 +469,11 @@ fn main() {
             let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
             //println!("{:?}", counts_by_allele);
             let _ = write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), freq_output);
+        }
+        Commands::Dedup { index } => {
+            println!("Deduplicating index: {}", index);
+            let deduped_kmers_by_allele = find_dup_kmers_across_var(index);
+            println!("{:?}", deduped_kmers_by_allele);
         }
         Commands::Call { counts, output } => {
             println!("Converting counts to allele frequencies... {}, {}", counts, output);
