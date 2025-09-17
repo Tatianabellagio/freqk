@@ -33,9 +33,10 @@ enum Commands {
     },
     /// Deduplicate index: remove k-mers shared across variants
     Dedup {
-        #[arg(short,long, help = "name of index files")]
+        #[arg(short,long, help = "name of index file")]
         index: String,
-
+        #[arg(short,long, help = "name of deduplicated index")]
+        output: String,
     },
     /// Count k-mers by allele
     Count {
@@ -127,7 +128,7 @@ fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
 
 
 // look across variants to find shared kmers
-fn find_dup_kmers_across_var(index: &String) -> Result<Vec<Vec<Vec<String>>>, io::Error> {
+fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<Vec<Vec<String>>>, io::Error> {
     // open index
     let file = File::open(index)?;
     let reader = BufReader::new(file);
@@ -176,10 +177,38 @@ fn find_dup_kmers_across_var(index: &String) -> Result<Vec<Vec<Vec<String>>>, io
         }
     }
 
-    Ok(data)
+    //Ok(data)
 
     // rewrite index with deduped k-mers
+    // output file
+    let mut buffered_file = BufWriter::new(File::create(output)?);
 
+    // loop through vector of deduped k-mers
+    let mut i = 0;
+    
+    // open index again
+    let file = File::open(index)?;
+    let reader = BufReader::new(file);
+
+    for line_result in reader.lines() {
+        //println!("{}", &line?);
+        let line = line_result?; // Handle potential errors reading the line
+        let fields: Vec<&str> = line.split(',').collect();
+
+        let dedup_kmers = &data[i];
+
+        let num_kmers_per_allele = dedup_kmers.into_iter().map( |inner_vec| inner_vec.len().to_string()).collect::<Vec<String>>().join("|");
+
+        let dedup_string = dedup_kmers.into_iter().map(|inner_vec| inner_vec.join(";")).collect::<Vec<String>>().join("|");
+        
+        // write index to output file
+        let parts = vec![fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], &num_kmers_per_allele, &dedup_string];
+        writeln!(buffered_file, "{}", parts.join(","))?;
+
+        i += 1;
+    }
+
+    Ok(data)
 }
 
 // insert variant into reference, get k-mers for each variant
@@ -470,10 +499,10 @@ fn main() {
             //println!("{:?}", counts_by_allele);
             let _ = write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), freq_output);
         }
-        Commands::Dedup { index } => {
-            println!("Deduplicating index: {}", index);
-            let deduped_kmers_by_allele = find_dup_kmers_across_var(index);
-            println!("{:?}", deduped_kmers_by_allele);
+        Commands::Dedup { index, output } => {
+            println!("Deduplicating index: {} {}", index, output);
+            let _ = find_dup_kmers_across_var(index, output);
+            //println!("{:?}", deduped_kmers_by_allele);
         }
         Commands::Call { counts, output } => {
             println!("Converting counts to allele frequencies... {}, {}", counts, output);

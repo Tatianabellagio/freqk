@@ -34,6 +34,10 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [ ] dedeuplicate index: remove any k-mers that are shared across variants
 
+- [ ] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
+
+- [ ] add unit tests
+
 - [x] determine k-mer length from index
 
 - [x] when indexing, count number of k-mers for each allele
