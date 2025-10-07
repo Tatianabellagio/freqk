@@ -579,7 +579,7 @@ fn main() {
             //let kmer_hashset = build_kmer_hashset(index);
             let kmer_counts =  count_target_kmers_in_reads_3(index.clone(), reads, k.expect("Cannot parse kmer length from index."), *nthreads);
             //let kmer_counts = count_target_kmers_in_reads(kmer_hashset.expect("Error creating target kmer hashset"), reads, k.expect("Cannot parse kmer length from index."));
-            //let _ = write_kmers(kmer_counts.clone(), count_output);
+            let _ = write_kmers(kmer_counts.clone(), count_output);
             let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
             //println!("{:?}", counts_by_allele);
             let _ = write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), freq_output);
