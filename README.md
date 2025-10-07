@@ -28,6 +28,10 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## To-do
 
+- [x] parallelize for loop over reads
+
+- [ ] remove leftover code
+
 - [ ] organize code into modules
 
 - [ ] convert counts into allele frequencies
