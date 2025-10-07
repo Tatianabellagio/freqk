@@ -7,10 +7,7 @@ use std::io::{Write, BufWriter};
 use bio::bio_types::genome::AbstractLocus;
 use std::io::{self, prelude::*, BufReader};
 use std::collections::HashSet;
-use kseq::parse_path;
 use std::collections::HashMap;
-use seq_io::fastq::{Reader as OtherReader, Record};
-use seq_io::parallel::parallel_fastq;
 use fastq::{parse_path as other_parse_path, Record as OtherRecord};
 
 #[derive(Parser)]
@@ -334,40 +331,6 @@ fn build_kmer_hashset(index: String) -> Result<HashSet<String>, io::Error> {
     Ok(kmers_hashset)
 }
 
-
-// input hashset of kmers, path to reads
-// loop over reads and get canonical kmers
-// only count k-mer if its in hashset
-// save output to k-mer counts file
-fn count_target_kmers_in_reads(kmers_hashset: HashSet<String>, reads: &Vec<String>, k: i64) -> HashMap<String, usize> {
-    let mut kmer_counts: HashMap<String, usize> = HashMap::new();
-    for read_set in reads{
-    println!("Counting k-mers in {}...", read_set);
-    let mut records = parse_path(read_set).unwrap();
-    let mut i = 0;
-	// let mut records = parse_reader(File::open(path).unwrap()).unwrap();
-	while let Some(record) = records.iter_record().unwrap() {
-		//println!("head:{} des:{} seq:{} qual:{} len:{}", 
-		//	record.head(), record.des(), record.seq(), 
-		//	record.qual(), record.len());
-        if i % 10_000 == 0 {
-            println!("Reads processed: {}", i);
-        }
-        let read_kmers = get_canonical_kmers(record.seq(), k.try_into().unwrap());
-        for read_kmer in &read_kmers{
-            if kmers_hashset.contains(read_kmer) {
-                //println!("kmer is in hashset!");
-                let count = kmer_counts.entry(read_kmer.to_string()).or_insert(0);
-                *count += 1; // Increment the count
-            }
-        }
-        i += 1;
-	}
-    }
-    kmer_counts
-}
-
-
 // write k-mer counts to file
 fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::Result<()> {
     println!("Writing k-mer counts to {}", output);
@@ -482,30 +445,6 @@ fn k_from_index(index: &String) -> Result<i64, io::Error> {
     return Ok(first_element.len() as i64);
 }
 
-
-fn count_target_kmers_in_reads_2(kmers_hashset: HashSet<String>, reads: &String, k: i64) -> HashMap<String, usize>{
-    let mut kmer_counts: HashMap<String, usize> = HashMap::new();
-    let reader = OtherReader::from_path(reads).unwrap();
-    let mut writer = BufWriter::new(File::create("filtered.fastq").unwrap());
-
-    let test_counts = parallel_fastq(reader, 4, 2,
-        |record, found| { // runs in worker
-            *found = record.seq().windows(3).position(|s| s == b"AAA").is_some();
-        },
-        |record, found| { // runs in main thread
-            if *found {
-                record.write(&mut writer).unwrap();
-            }
-        // Some(value) will stop the reader, and the value will be returned.
-        // In the case of never stopping, we need to give the compiler a hint about the
-        // type parameter, thus the special 'turbofish' notation is needed,
-        // hoping on progress here: https://github.com/rust-lang/rust/issues/27336
-            None::<()>
-        }).unwrap();
-
-    return kmer_counts;
-}
-
 // use fastq-rs to loop over reads with multiple threads
 
 fn merge_hashmaps(vec_of_maps: Vec<HashMap<String, usize>>) -> HashMap<String, usize> {
@@ -530,7 +469,6 @@ fn count_target_kmers_in_reads_3(index: String, reads: &String, k: i64, nthreads
 
     let merged_counts: HashMap<String, usize> = other_parse_path(Some(reads), |parser| {
         let results: Vec<HashMap<String, usize>> = parser.parallel_each(nthreads, move |record_sets| {
-            let mut thread_total = 0;
             let mut kmer_counts: HashMap<String, usize> = HashMap::new();
             let kmers_hashset = build_kmer_hashset(index.clone()).expect("Reason");
             //let kmers_hashset: HashSet<String> = HashSet::new();
@@ -538,7 +476,6 @@ fn count_target_kmers_in_reads_3(index: String, reads: &String, k: i64, nthreads
             println!("Looping over reads...");
             for record_set in record_sets {
                 for record in record_set.iter() {
-                    thread_total += 1;
                     let read_kmers = get_canonical_kmers( std::str::from_utf8( record.seq() ).expect("REASON"), k.try_into().unwrap());
                         for read_kmer in &read_kmers{
                             if kmers_hashset.contains(read_kmer) {
