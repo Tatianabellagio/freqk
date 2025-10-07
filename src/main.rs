@@ -9,6 +9,9 @@ use std::io::{self, prelude::*, BufReader};
 use std::collections::HashSet;
 use kseq::parse_path;
 use std::collections::HashMap;
+use seq_io::fastq::{Reader as OtherReader, Record};
+use seq_io::parallel::parallel_fastq;
+use fastq::{parse_path as other_parse_path, Record as OtherRecord};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -43,7 +46,9 @@ enum Commands {
         #[arg(short,long, help = "name of index files")]
         index: String,
         #[arg(short,long, help = "comma-separated list of reads in fastq format (can be gz or not)", value_delimiter = ',', value_name = "FILE")]
-        reads: Vec<String>,
+        reads: String,
+        #[arg(short,long, help = "Number of threads to use (a copy of index will be loaded onto each thread)")]
+        nthreads: usize,
         #[arg(short,long, help = "name of output for counts by allele")]
         freq_output: String,
         #[arg(short,long, help = "name of output for raw kmer counts")]
@@ -291,7 +296,7 @@ fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &
 
 
 // read index by line
-fn build_kmer_hashset(index: &String) -> Result<HashSet<String>, io::Error> {
+fn build_kmer_hashset(index: String) -> Result<HashSet<String>, io::Error> {
 
     println!("Loading index at {} into a hashset...", index);
 
@@ -478,6 +483,85 @@ fn k_from_index(index: &String) -> Result<i64, io::Error> {
 }
 
 
+fn count_target_kmers_in_reads_2(kmers_hashset: HashSet<String>, reads: &String, k: i64) -> HashMap<String, usize>{
+    let mut kmer_counts: HashMap<String, usize> = HashMap::new();
+    let reader = OtherReader::from_path(reads).unwrap();
+    let mut writer = BufWriter::new(File::create("filtered.fastq").unwrap());
+
+    let test_counts = parallel_fastq(reader, 4, 2,
+        |record, found| { // runs in worker
+            *found = record.seq().windows(3).position(|s| s == b"AAA").is_some();
+        },
+        |record, found| { // runs in main thread
+            if *found {
+                record.write(&mut writer).unwrap();
+            }
+        // Some(value) will stop the reader, and the value will be returned.
+        // In the case of never stopping, we need to give the compiler a hint about the
+        // type parameter, thus the special 'turbofish' notation is needed,
+        // hoping on progress here: https://github.com/rust-lang/rust/issues/27336
+            None::<()>
+        }).unwrap();
+
+    return kmer_counts;
+}
+
+// use fastq-rs to loop over reads with multiple threads
+
+fn merge_hashmaps(vec_of_maps: Vec<HashMap<String, usize>>) -> HashMap<String, usize> {
+    let mut merged_map: HashMap<String, usize> = HashMap::new();
+
+    for map in vec_of_maps {
+        for (key, value) in map {
+            *merged_map.entry(key).or_insert(0) += value;
+        }
+    }
+    merged_map
+}
+
+fn count_target_kmers_in_reads_3(index: String, reads: &String, k: i64, nthreads: usize) -> HashMap<String, usize> {
+    // Treat "-" as stdin
+    //let path = match <std::string::String as AsRef<T>>::as_ref(reads).map(String::as_ref) {
+    //    None | Some("-") => { None },
+    //    Some(name) => Some(name)
+    //};
+
+    //let mut kmer_counts: HashMap<String, usize> = HashMap::new();
+
+    let merged_counts: HashMap<String, usize> = other_parse_path(Some(reads), |parser| {
+        let results: Vec<HashMap<String, usize>> = parser.parallel_each(nthreads, move |record_sets| {
+            let mut thread_total = 0;
+            let mut kmer_counts: HashMap<String, usize> = HashMap::new();
+            let kmers_hashset = build_kmer_hashset(index.clone()).expect("Reason");
+            //let kmers_hashset: HashSet<String> = HashSet::new();
+            //let k = 31;
+            println!("Looping over reads...");
+            for record_set in record_sets {
+                for record in record_set.iter() {
+                    thread_total += 1;
+                    let read_kmers = get_canonical_kmers( std::str::from_utf8( record.seq() ).expect("REASON"), k.try_into().unwrap());
+                        for read_kmer in &read_kmers{
+                            if kmers_hashset.contains(read_kmer) {
+                                let count = kmer_counts.entry(read_kmer.to_string()).or_insert(0);
+                                *count += 1; // Increment the count
+                            }
+                        }
+                }
+            }
+
+            // The values we return (it can be any type implementing `Send`)
+            // are collected from the different threads by
+            // `parser.parallel_each` and returned. See doc for a description of
+            // error handling.
+            kmer_counts
+        }).expect("Invalid fastq file");
+        println!("Merging hashmaps...");
+        let merged_counts = merge_hashmaps(results);
+        //println!("{:?}", kmer_counts);
+        merged_counts
+    }).expect("Invalid compression");
+    return merged_counts;
+}
 
 // bring it all together!
 fn main() {
@@ -488,13 +572,14 @@ fn main() {
             println!("fasta: {}, vcf: {}, k: {}", fasta, vcf, kmer);
             insert_var(vcf, fasta, output, kmer);
         }
-        Commands::Count { index, reads, freq_output, count_output } => {
-            println!("Counting k-mers: {}, {:?}, {}, {}", index, reads, freq_output, count_output);
+        Commands::Count { index, reads, nthreads, freq_output, count_output } => {
+            println!("Counting k-mers: {}, {:?}, {}, {}, {}", index, reads, nthreads, freq_output, count_output);
             let k = k_from_index(index);
             println!("k is: {:?}", k);
-            let kmer_hashset = build_kmer_hashset(index);
-            let kmer_counts = count_target_kmers_in_reads(kmer_hashset.expect("Error creating target kmer hashset"), reads, k.expect("Cannot parse kmer length from index."));
-            let _ = write_kmers(kmer_counts.clone(), count_output);
+            //let kmer_hashset = build_kmer_hashset(index);
+            let kmer_counts =  count_target_kmers_in_reads_3(index.clone(), reads, k.expect("Cannot parse kmer length from index."), *nthreads);
+            //let kmer_counts = count_target_kmers_in_reads(kmer_hashset.expect("Error creating target kmer hashset"), reads, k.expect("Cannot parse kmer length from index."));
+            //let _ = write_kmers(kmer_counts.clone(), count_output);
             let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
             //println!("{:?}", counts_by_allele);
             let _ = write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), freq_output);
