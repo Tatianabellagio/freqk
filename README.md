@@ -30,11 +30,15 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] parallelize for loop over reads
 
-- [ ] remove leftover code
+- [x] remove leftover code
 
-- [ ] organize code into modules
+- [x] organize code into modules
+
+- [ ] use paraseq instead of fastqrs
 
 - [ ] convert counts into allele frequencies
+
+- [ ] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
 
 - [x] dedeuplicate index: remove any k-mers that are shared across variants
 
