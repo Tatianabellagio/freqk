@@ -16,7 +16,7 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 1. Index the panel of reference variants
 
-`freqk index --vcf tests/1.vcf.gz --fasta tests/1.fasta --k 31 --output index.txt`
+`freqk index --vcf tests/1.vcf.gz --fasta tests/1.fasta -k 31 --output index.txt`
 
 2. Count the k-mers specified in the index
 
@@ -28,6 +28,26 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## To-do
 
-- [ ] when indexing, count number of k-mers for each allele
+- [x] parallelize for loop over reads
 
-- [ ] for count subcommand: load in k-mers from index as hash set, loop over input reads with a fastx iterator, slide window to get k-mers, only count k-mers if they're in the hash set
+- [x] remove leftover code
+
+- [x] organize code into modules
+
+- [ ] use paraseq instead of fastqrs
+
+- [ ] convert counts into allele frequencies
+
+- [ ] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
+
+- [x] dedeuplicate index: remove any k-mers that are shared across variants
+
+- [ ] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
+
+- [ ] add unit tests
+
+- [x] determine k-mer length from index
+
+- [x] when indexing, count number of k-mers for each allele
+
+- [x] for count subcommand: load in k-mers from index as hash set, loop over input reads with a fastx iterator, slide window to get k-mers, only count k-mers if they're in the hash set
