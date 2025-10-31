@@ -39,7 +39,6 @@ pub fn k_from_index(index: &String) -> Result<i64, io::Error> {
     return Ok(first_element.len() as i64);
 }
 
-
 // loads index from file and puts all allele-specific k-mers into a single hashset
 pub fn build_kmer_hashset(index: String) -> Result<HashSet<String>, io::Error> {
 
