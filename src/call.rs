@@ -1,6 +1,25 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
+use crate::common;
 
+// array of allele-specific k-mer counts
+struct Karray {
+    counts: Vec<Vec<f32>>,
+}
+
+impl Karray {
+    // write array to file
+    fn write(self, output_file: &String) {
+        let mut output_str = Vec::new();
+        for one_site in &self.counts {
+            let one_site_str = one_site.iter().map(|num| num.to_string()).collect::<Vec<String>>().join("|");
+            output_str.push(one_site_str);
+        }
+        let _ = common::write_strings(output_str, output_file);
+    }
+}
+
+// converting string array to u32 array
 fn vec_vec_string_to_vec_vec_u32(string_vec_vec: Vec<Vec<String>>) -> Vec<Vec<u32>> {
     let result: Vec<Vec<u32>> = string_vec_vec
         .into_iter()
@@ -15,6 +34,7 @@ fn vec_vec_string_to_vec_vec_u32(string_vec_vec: Vec<Vec<String>>) -> Vec<Vec<u3
     return result;
 }
 
+// dividing two 2d arrays
 fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Result<Vec<Vec<f32>>, io::Error> {
     if vec_a.len() != vec_b.len() {
         panic!("Vectors of different lengths");
@@ -66,37 +86,12 @@ fn normalized_counts_to_allele_freq(norm_counts: Vec<Vec<f32>>) -> Vec<Vec<f32>>
     return result;
 }
 
-fn write_freqs_by_variant(allele_freqs: Vec<String>, output: &String) -> io::Result<()>{
-
-    println!("Writing allele frequencies to: {}", output);
-    // Open the file for writing
-    let mut file = File::create(output)?;
-
-    // Iterate over the HashMap and write each entry to the file
-    for element in allele_freqs.iter() {
-        writeln!(file, "{}", element)?;
-    }
-
-    println!("Writing successful");
-
-    Ok(())
-
-}
-
+// BRING IT ALL TOGETHER! :D
 pub fn call_from_counts(index: &String, counts: &String, output: &String) -> Result<(), io::Error> {
     // parse number of allele-specific k-mers from index
-    let file = File::open(index)?;
-    let reader = BufReader::new(file);
-    let mut num_uniq_kmers_per_allele = Vec::new();
-    for line_result in reader.lines() {
-        let line = line_result?;
-        let fields: Vec<&str> = line.split(',').collect();
-        let num_kmers = fields[6];
-        let num_kmers_vec: Vec<String> = num_kmers.split('|').map(|s| s.to_owned()).collect();
-        num_uniq_kmers_per_allele.push(num_kmers_vec);
-    }
+    let num_uniq_kmers_per_allele = common::read_index_field(index, 6);
     // convert to u32
-    let num_uniq_kmers_per_allele_u32 = vec_vec_string_to_vec_vec_u32(num_uniq_kmers_per_allele);
+    let num_uniq_kmers_per_allele_u32 = vec_vec_string_to_vec_vec_u32(num_uniq_kmers_per_allele?);
     // parse counts file
     let file = File::open(counts)?;
     let reader = BufReader::new(file);
@@ -111,16 +106,11 @@ pub fn call_from_counts(index: &String, counts: &String, output: &String) -> Res
     // normalize k-mer counts by number of alleles
     let counts_per_kmer = elementwise_division_2d(&kmer_counts_per_allele_u32, &num_uniq_kmers_per_allele_u32);
     // get allele frequencies 
-    let allele_freq = normalized_counts_to_allele_freq(counts_per_kmer?);
+    let allele_freq = Karray {
+        counts: normalized_counts_to_allele_freq(counts_per_kmer?),
+    };
+
     // write frequencies to file
-    let mut allele_freq_str = Vec::new();
-    for one_site in &allele_freq {
-        let one_site_str = one_site.iter().map(|num| num.to_string()).collect::<Vec<String>>().join("|");
-        allele_freq_str.push(one_site_str);
-    }
-
-    let _ = write_freqs_by_variant(allele_freq_str, output);
-
-    //println!("{:?}", allele_freq);
+    allele_freq.write(output);
     Ok(())
 }

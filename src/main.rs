@@ -65,16 +65,11 @@ fn main() {
     match &cli.command {
         Commands::Index { fasta, vcf, output, kmer } => {
             println!("fasta: {}, vcf: {}, k: {}", fasta, vcf, kmer);
-            index::insert_var(vcf, fasta, output, kmer);
+            index::index_workflow(vcf, fasta, output, kmer);
         }
         Commands::Count { index, reads, nthreads, freq_output, count_output } => {
             println!("Counting k-mers: {}, {:?}, {}, {}, {}", index, reads, nthreads, freq_output, count_output);
-            let k = count::k_from_index(index);
-            println!("k is: {:?}", k);
-            let kmer_counts = count::count_target_kmers_in_reads(index.clone(), reads, k.expect("Cannot parse kmer length from index."), *nthreads);
-            let _ = count::write_kmers(kmer_counts.clone(), count_output);
-            let counts_by_allele = count::combine_counts_by_allele(index, kmer_counts);
-            let _ = count::write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), freq_output);
+            count::count_workflow(index, reads, *nthreads, freq_output, count_output);
         }
         Commands::Dedup { index, output } => {
             println!("Deduplicating index: {} {}", index, output);

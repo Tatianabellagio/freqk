@@ -39,7 +39,7 @@ fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
 }
 
 // insert variant into reference, get k-mers for each variant
-pub fn insert_var(vcf_path: &String, fasta_path: &String, output_path: &String, k: &i64) -> Option<Vec<i32>> {
+pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &String, k: &i64) -> Option<Vec<i32>> {
     // rust-htslib provides VCF I/O.
     let mut vcf_reader = Reader::from_path(vcf_path).expect("Error opening file.");
 

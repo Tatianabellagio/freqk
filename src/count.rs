@@ -182,19 +182,11 @@ pub fn combine_counts_by_allele(index: &String, counts: HashMap<String, usize>) 
     Ok(result)
 }
 
-pub fn write_counts_by_allele(counts_by_allele: Vec<String>, output: &String) -> io::Result<()>{
-
-    println!("Writing counts by allele to {}", output);
-    // Open the file for writing
-    let mut file = File::create(output)?;
-
-    // Iterate over the HashMap and write each entry to the file
-    for element in counts_by_allele.iter() {
-        writeln!(file, "{}", element)?;
-    }
-
-    println!("Counts successfully written.");
-
-    Ok(())
-
+pub fn count_workflow(index: &String, reads: &String, nthreads: usize, freq_output: &String, count_output: &String) -> () {
+    let k = k_from_index(index);
+    println!("k is: {:?}", k);
+    let kmer_counts = count_target_kmers_in_reads(index.clone(), reads, k.expect("Cannot parse kmer length from index."), nthreads);
+    let _ = write_kmers(kmer_counts.clone(), count_output);
+    let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
+    let _ = common::write_strings(counts_by_allele.expect("Error writing counts by allele"), freq_output);
 }
