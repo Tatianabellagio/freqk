@@ -36,7 +36,11 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] use paraseq instead of fastqrs - paraseq has a conflict that prevents it from working with rusthtslib, also seems to do similarly to fastqrs in benchmarks
 
-- [ ] convert counts into allele frequencies
+- [x] convert counts into allele frequencies
+
+- [ ] add more methods to karray
+
+- [ ] add structs for other types of data
 
 - [ ] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
 

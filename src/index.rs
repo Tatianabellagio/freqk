@@ -6,7 +6,8 @@ use std::io::{Write, BufWriter};
 use bio::bio_types::genome::AbstractLocus;
 use std::collections::HashSet;
 use std::collections::HashMap;
-
+use std::io::BufReader;
+use std::io::BufRead;
 use crate::common;
 
 // given a list of k-mers by allele
@@ -38,6 +39,28 @@ fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
     data
 }
 
+// read fai to get chrom lengths
+fn read_fai(fasta_path: &String) -> Result<HashMap<String, i64>, Box<dyn std::error::Error>> {
+    // open index
+    let mut fai_path = fasta_path.clone();
+    fai_path.push_str(".fai");
+    let file = File::open(fai_path)?;
+    let reader = BufReader::new(file);
+
+    // HashMap to store chrom lengths
+    let mut chrom_lengths: HashMap<String, i64> = HashMap::new();
+
+    // loop over file and get 
+    for line_result in reader.lines() {
+        let line = line_result?; // Handle potential errors reading the line
+        let fields: Vec<&str> = line.split('\t').collect();
+        let chrom_name = fields[0].to_string();
+        let chrom_length = fields[1].parse::<i64>();
+        chrom_lengths.insert(chrom_name, chrom_length?);
+    }
+    Ok(chrom_lengths)
+}
+
 // insert variant into reference, get k-mers for each variant
 pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &String, k: &i64) -> Option<Vec<i32>> {
     // rust-htslib provides VCF I/O.
@@ -46,12 +69,40 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
     // read indexed fasta file
     let mut faidx = IndexedReader::from_file(fasta_path).unwrap();
 
+    // read fasta index to get chrom_lengths
+    let chrom_lengths = read_fai(fasta_path);
+    println!("Chromosome lengths:");
+    println!("{:?}", chrom_lengths);
+
     // output file
     let mut buffered_file = BufWriter::new(File::create(output_path).ok()?);
 
     // iterate through each row of the vcf body.
     for (i, record_result) in vcf_reader.records().enumerate() {
         let record = record_result.expect("Fail to read record");
+
+        // check if record is near chromosome ends
+        let pos = record.pos() - 1;
+        let chrom = record.contig();
+
+        if let Some(num_ref) = chrom_lengths.as_ref().expect("Reason").get(chrom) {
+            let end = *num_ref;
+            if pos >= (end - k){
+                println!("Variant near chromosome end detected, skipping CHROM: {} POS: {}", chrom, pos);
+                continue
+            }
+        } else {
+            println!("Warning: {} not found in .fa.fai file!", chrom);
+            println!("Thus, will skip CHROM: {} POS: {}", chrom, pos);
+            continue
+        }
+
+        if pos <= *k {
+            println!("Variant near chromosome start detected, skipping CHROM: {} POS: {}", chrom, pos);
+            continue
+        }
+
+        // construct sequences for alleles
         let mut alleles = String::new();
         for allele in record.alleles() {
             for c in allele {
@@ -61,8 +112,6 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
 
         // move the pointer in the index to the desired sequence and interval
-        let pos = record.pos() - 1;
-        let chrom = record.contig();
         faidx.fetch(chrom, (pos - k + 1).try_into().unwrap(), (pos + k).try_into().unwrap() ).expect("Couldn't fetch interval");
 
         // read the subsequence defined by the interval into a vector

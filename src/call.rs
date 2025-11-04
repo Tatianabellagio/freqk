@@ -66,14 +66,10 @@ fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Resu
 // find minimum number in Vec<u32>
 fn normalized_counts_to_allele_freq(norm_counts: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
     // get total of normalized counts
-    //println!("{:?}", norm_counts);
-
     let mut sums: Vec<f32> = Vec::new();
     for inner_vec in &norm_counts {
         sums.push(inner_vec.iter().sum());
     }
-
-    //println!("{:?}", sums);
     let mut result = Vec::new();
     // divide normalized frequencies by sums
     for (norm_count, sum) in norm_counts.iter().zip(sums.iter()) {
@@ -109,7 +105,6 @@ pub fn call_from_counts(index: &String, counts: &String, output: &String) -> Res
     let allele_freq = Karray {
         counts: normalized_counts_to_allele_freq(counts_per_kmer?),
     };
-
     // write frequencies to file
     allele_freq.write(output);
     Ok(())
