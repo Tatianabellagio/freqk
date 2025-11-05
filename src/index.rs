@@ -77,14 +77,28 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
     // output file
     let mut buffered_file = BufWriter::new(File::create(output_path).ok()?);
 
-    // iterate through each row of the vcf body.
-    for (i, record_result) in vcf_reader.records().enumerate() {
-        let record = record_result.expect("Fail to read record");
+    // iterate through each row of the vcf body.i
+    let mut i = 0;
+    let mut vcf_iterator = vcf_reader.records().peekable();
+    while let Some(record_result) = vcf_iterator.next() {
+        i += 1;
 
-        // check if record is near chromosome ends
+        //let next = vcf_iterator.peek().unwrap().as_ref().unwrap();
+        
+        //let pos_next = next.pos() - 1;
+        
+        let record = record_result.expect("Fail to read record");
+        
         let pos = record.pos() - 1;
         let chrom = record.contig();
 
+        // check if variants overlap
+        //if (pos_next - pos) <= *k {
+        //    println!("Variant overlaps with next variant, skipping CHROM: {} POS: {}", chrom, pos);
+        //    continue
+        //}
+
+        // check if variant near chromosome ends or not found in reference
         if let Some(num_ref) = chrom_lengths.as_ref().expect("Reason").get(chrom) {
             let end = *num_ref;
             if pos >= (end - k){
@@ -102,6 +116,17 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             continue
         }
 
+        if let Some(next_ref) = vcf_iterator.peek() {
+            let next_result = next_ref.as_ref().unwrap();
+            let pos_next = next_result.pos() - 1;
+            let chrom_next = next_result.contig();
+            if (pos_next - pos) <= *k {
+                println!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
+                vcf_iterator.next();
+                continue
+            }
+        } else {
+        }
         // construct sequences for alleles
         let mut alleles = String::new();
         for allele in record.alleles() {
