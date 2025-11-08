@@ -18,11 +18,15 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 `freqk index --vcf tests/1.vcf.gz --fasta tests/1.fasta -k 31 --output index.txt`
 
-2. Count the k-mers specified in the index
+2. (Optional but recommended) Deduplicate index
+
+`freqk dedup --index index.txt --output dedup.txt`
+
+3. Count the k-mers specified in the index
 
 `freqk count --index index.txt --reads tests/1_R1.fastq tests/1_R2.fastq --output counts.txt`
 
-3. Call allele frequences based on k-mer counts
+4. Call allele frequences based on k-mer counts
 
 `freqk call --index index.txt --counts counts.txt --output calls.txt`
 
@@ -40,7 +44,7 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] skip over variants at chromosome ends and overlapping variants 
 
-- [ ] check that reference sequence in vcf matches fasta
+- [x] check that reference sequence in vcf matches fasta
 
 - [ ] add more methods to structs
 
