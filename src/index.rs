@@ -82,24 +82,11 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
     let mut vcf_iterator = vcf_reader.records().peekable();
     while let Some(record_result) = vcf_iterator.next() {
         i += 1;
-
-        //let next = vcf_iterator.peek().unwrap().as_ref().unwrap();
-        
-        //let pos_next = next.pos() - 1;
-        
-        let record = record_result.expect("Fail to read record");
-        
+        let record = record_result.expect("Failed to read record!");
         let pos = record.pos() - 1;
         let chrom = record.contig();
-
-        // check if variants overlap
-        //if (pos_next - pos) <= *k {
-        //    println!("Variant overlaps with next variant, skipping CHROM: {} POS: {}", chrom, pos);
-        //    continue
-        //}
-
         // check if variant near chromosome ends or not found in reference
-        if let Some(num_ref) = chrom_lengths.as_ref().expect("Reason").get(chrom) {
+        if let Some(num_ref) = chrom_lengths.as_ref().expect("Failed to read .fa.fai file!").get(chrom) {
             let end = *num_ref;
             if pos >= (end - k){
                 println!("Variant near chromosome end detected, skipping CHROM: {} POS: {}", chrom, pos);
@@ -110,12 +97,13 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             println!("Thus, will skip CHROM: {} POS: {}", chrom, pos);
             continue
         }
-
         if pos <= *k {
             println!("Variant near chromosome start detected, skipping CHROM: {} POS: {}", chrom, pos);
             continue
         }
-
+        // until you reach the end of the next file, peek at the next vcf record and see if it
+        // overlaps with the current record, if there is an overlap then skip both this and the
+        // next record
         if let Some(next_ref) = vcf_iterator.peek() {
             let next_result = next_ref.as_ref().unwrap();
             let pos_next = next_result.pos() - 1;
@@ -125,7 +113,6 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
                 vcf_iterator.next();
                 continue
             }
-        } else {
         }
         // construct sequences for alleles
         let mut alleles = String::new();
@@ -135,32 +122,25 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
              }
             alleles.push(' ')
         }
-
         // move the pointer in the index to the desired sequence and interval
         faidx.fetch(chrom, (pos - k + 1).try_into().unwrap(), (pos + k).try_into().unwrap() ).expect("Couldn't fetch interval");
-
         // read the subsequence defined by the interval into a vector
         let mut seq = Vec::new();
         faidx.read(&mut seq).expect("Couldn't read the interval");
-
         // convert to string
         let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
-
         // Split the string by whitespace and collect into a Vec<&str>
         let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
-
         // insert alleles into reference sequence to get variable sequences 
         // replace reference allele with variant allele
         let mut var_seqs = Vec::new();
         let ku = *k as usize;
         let ref_allele_len = alleles_list[0].len();
-
         for allele in &alleles_list {
             let mut var_seq = seq_string.clone();
             var_seq.replace_range(ku..ku+ref_allele_len, allele);
             var_seqs.push(var_seq);
         }
-
         // get k-mers
         let mut kmers_by_allele = Vec::new();
         for var_seq in &var_seqs {

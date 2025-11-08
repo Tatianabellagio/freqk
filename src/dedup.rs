@@ -3,6 +3,47 @@ use std::io::{Write, BufWriter};
 use std::io::{self, prelude::*, BufReader};
 use std::collections::HashSet;
 use std::collections::HashMap;
+use rust_htslib::bcf::Reader;
+use bio::io::fasta::IndexedReader;
+use rust_htslib::bcf::Read;
+use bio::bio_types::genome::AbstractLocus;
+
+use crate::common;
+
+// look across non-variable reference regions
+// remove any allele-specific k-mers also found in these regions
+pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> HashSet<String> {
+    println!("Build hashset of reference k-mers...");
+    // rust-htslib provides VCF I/O.
+    let mut vcf_reader = Reader::from_path(vcf_path).expect("Error opening file.");
+
+    // read indexed fasta file
+    let mut faidx = IndexedReader::from_file(fasta_path).unwrap();
+
+    // loop over variants a
+    let mut start = 1;
+    let mut result = Vec::new();
+    for record_result in vcf_reader.records() {
+        let record = record_result.expect("Failure reading record");
+        let pos = record.pos() - 1;
+        let chrom = record.contig();
+        let end = pos - 1;
+        // move the pointer in the index to the desired sequence and interval
+        faidx.fetch(chrom, start.try_into().unwrap(), end.try_into().unwrap()).expect("Couldn't fetch interval");
+        // read the subsequence defined by the interval into a vector
+        let mut seq = Vec::new();
+        faidx.read(&mut seq).expect("Couldn't read the interval");
+        // convert to string
+        let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
+        // get k-mers
+        let ref_kmers: Vec<String> = common::get_canonical_kmers(&seq_string, *k as usize);
+        result.extend(ref_kmers);
+        start = pos + 1;
+    }
+    // put kmers into hashset
+    let ref_kmers_hashset: HashSet<String> = result.into_iter().collect();
+    return ref_kmers_hashset;
+}
 
 // look across variants to find shared kmers
 pub fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<Vec<Vec<String>>>, io::Error> {

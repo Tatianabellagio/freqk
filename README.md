@@ -38,11 +38,15 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] convert counts into allele frequencies
 
-- [ ] add more methods to karray
+- [x] skip over variants at chromosome ends and overlapping variants 
 
-- [ ] add structs for other types of data
+- [ ] check that reference sequence in vcf matches fasta
+
+- [ ] add more methods to structs
 
 - [ ] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
+
+- [ ] add input checkers, check that vcf is sorted for freqk index
 
 - [x] dedeuplicate index: remove any k-mers that are shared across variants
 

@@ -56,6 +56,14 @@ enum Commands {
         #[arg(short,long, help = "name of output file with allele frequencies")]
         output: String,
     },
+    Debug {
+        #[arg(short,long, help = "fasta file of reference genome")]
+        fasta: String,
+        #[arg(short,long, help = "vcf file of variations between reference and other genomes")]
+        vcf: String,
+        #[arg(short,long, help = "kmer length for building the index")]
+        kmer: i64,
+    },
 }
 
 // bring it all together!
@@ -78,6 +86,11 @@ fn main() {
         Commands::Call { index, counts, output} => {
             println!("Converting counts to allele frequencies: {} {} {}", index, counts, output);
             let _ = call::call_from_counts(index, counts, output);
+        }
+        Commands::Debug { fasta, vcf, kmer } => {
+            println!("Debug code...");
+            let ref_hash = dedup::reference_hashset(fasta, vcf, kmer);
+            //println!("{:?}", ref_hash);
         }
     }
 }
