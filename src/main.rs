@@ -27,7 +27,7 @@ enum Commands {
         #[arg(short,long, help = "kmer length for building the index")]
         kmer: i64,
     },
-    /// Deduplicate index: remove k-mers shared across variants
+    /// Deduplicate index of k-mers shared across variants
     VarDedup {
         #[arg(short,long, help = "name of index file")]
         index: String,
@@ -56,6 +56,7 @@ enum Commands {
         #[arg(short,long, help = "name of output file with allele frequencies")]
         output: String,
     },
+    /// Deduplicate index of reference k-mers 
     RefDedup {
         #[arg(short,long, help = "path to index file")]
         index: String,
@@ -87,14 +88,14 @@ fn main() {
             println!("Deduplicating index across variants: {} {}", index, output);
             let _ = dedup::find_dup_kmers_across_var(index, output);
         }
-        Commands::Call { index, counts, output} => {
-            println!("Converting counts to allele frequencies: {} {} {}", index, counts, output);
-            let _ = call::call_from_counts(index, counts, output);
-        }
         Commands::RefDedup { index, output, fasta, vcf, kmer } => {
             println!("Deduplicating index of reference k-mers: {} {} {} {} {}", index, output, fasta, vcf, kmer);
             let ref_hash = dedup::reference_hashset(fasta, vcf, kmer);
             let _ = dedup::remove_ref_kmers(index, output, ref_hash);
+        }
+        Commands::Call { index, counts, output} => {
+            println!("Converting counts to allele frequencies: {} {} {}", index, counts, output);
+            let _ = call::call_from_counts(index, counts, output);
         }
     }
 }
