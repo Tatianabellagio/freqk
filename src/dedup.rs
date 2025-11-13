@@ -28,11 +28,15 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
         let pos = record.pos() - 1;
         let chrom = record.contig();
         let end = pos - 1;
+        if (end - start) <= *k {
+            println!("Skipping adjacent variants at: {} {} {}", chrom, start, end);
+            continue
+        }
         // move the pointer in the index to the desired sequence and interval
-        faidx.fetch(chrom, start.try_into().unwrap(), end.try_into().unwrap()).expect("Couldn't fetch interval");
+        faidx.fetch(chrom, start.try_into().unwrap(), end.try_into().unwrap()).expect("Could not fetch interval");
         // read the subsequence defined by the interval into a vector
         let mut seq = Vec::new();
-        faidx.read(&mut seq).expect("Couldn't read the interval");
+        faidx.read(&mut seq).expect("Could not read interval");
         // convert to string
         let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
         // get k-mers
