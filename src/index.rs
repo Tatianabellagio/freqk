@@ -108,7 +108,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             let next_result = next_ref.as_ref().unwrap();
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
-            if (pos_next - pos) <= *k {
+            if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
                 println!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
                 vcf_iterator.next();
                 continue
