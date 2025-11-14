@@ -46,9 +46,15 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] check that reference sequence in vcf matches fasta
 
+- [ ] var-dedup: add more print messages
+
+- [ ] bug: var-dedup, variant at end of one chromosome and start of another chromosome are labeled as overlapping and skipped
+
+- [ ] bug: ref-dedup, lots of variants are skipped
+
 - [ ] add more methods to structs
 
-- [ ] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
+- [x] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
 
 - [ ] add input checkers, check that vcf is sorted for freqk index
 

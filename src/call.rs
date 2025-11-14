@@ -52,9 +52,12 @@ fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Resu
                 .zip(inner_b.iter())
                 .map(|(&a, &b)| {
                     if b == 0 {
-                        panic!("Division by zero detected");
+                        // if we divide by zero, just replace zero so that results are NaN
+                        //println!("Division by zero detected");
+                        0 as f32
+                    } else {
+                        (a as f32)/(b as f32)
                     }
-                    (a as f32)/(b as f32)
                 })
                 .collect()
         })
