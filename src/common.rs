@@ -3,6 +3,29 @@ use std::fs::File;
 use std::io::Write;
 use crate::common::io::BufReader;
 use std::io::BufRead;
+use std::collections::HashMap;
+
+// read fai to get chrom lengths
+pub fn read_fai(fasta_path: &String) -> Result<HashMap<String, i64>, Box<dyn std::error::Error>> {
+    // open index
+    let mut fai_path = fasta_path.clone();
+    fai_path.push_str(".fai");
+    let file = File::open(fai_path)?;
+    let reader = BufReader::new(file);
+
+    // HashMap to store chrom lengths
+    let mut chrom_lengths: HashMap<String, i64> = HashMap::new();
+
+    // loop over file and get
+    for line_result in reader.lines() {
+        let line = line_result?; // Handle potential errors reading the line
+        let fields: Vec<&str> = line.split('\t').collect();
+        let chrom_name = fields[0].to_string();
+        let chrom_length = fields[1].parse::<i64>();
+        chrom_lengths.insert(chrom_name, chrom_length?);
+    }
+    Ok(chrom_lengths)
+}
 
 // slide window of k bases through sequence
 // get reverse complements

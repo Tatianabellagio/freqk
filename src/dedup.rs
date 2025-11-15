@@ -20,20 +20,52 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
     // read indexed fasta file
     let mut faidx = IndexedReader::from_file(fasta_path).unwrap();
 
+    // read fasta index to get chrom_lengths
+    let chrom_lengths = common::read_fai(fasta_path);
+    println!("Chromosome lengths:");
+    println!("{:?}", chrom_lengths);
+
     // loop over variants a
     let mut start = 1;
+    //let mut start_chrom = "";
+    //let binding = vcf_reader.records().nth(0).unwrap().expect("Trouble reading first vcf record");
+    //let mut start_chrom = binding.contig();
+    //let mut start_chrom = vcf_reader.records().nth(0).unwrap().expect("Trouble reading first vcf record").contig();
     let mut result = Vec::new();
-    for record_result in vcf_reader.records() {
+    let mut vcf_iterator = vcf_reader.records().peekable();
+    while let Some(record_result) = vcf_iterator.next() {
         let record = record_result.expect("Failure reading record");
         let pos = record.pos() - 1;
         let chrom = record.contig();
-        let end = pos - 1;
-        if (end - start) <= *k {
-            println!("Skipping adjacent variants at: {} {} {}", chrom, start, end);
-            continue
+        // until you reach the end of the next file, peek at the next vcf record and see if it
+        // overlaps with the current record, if there is an overlap then skip both this and the
+        // next record
+        if let Some(next_ref) = vcf_iterator.peek() {
+            let next_result = next_ref.as_ref().unwrap();
+            let pos_next = next_result.pos() - 1;
+            let chrom_next = next_result.contig();
+            if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
+                println!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
+                vcf_iterator.next();
+                continue
+            }
+            if (chrom != chrom_next) {
+                println!("Chromosome boundry reached between CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
+                if let Some(chrom_end) = chrom_lengths.as_ref().expect("Error reading chromosome lengths").get(chrom) {
+                    println!("Extracting sequence from POS: {} to end of {} at : {:?}", pos, chrom, chrom_end);
+                    faidx.fetch(chrom, pos.try_into().unwrap(), (*chrom_end as u64) ).expect("Could not fetch interval");
+                    start = 1; // start counter over at beginning of next chromosome
+                } else {
+                    panic!("Error getting length of chromosome");
+                }
+            } else {
+                // move the pointer in the index to the desired sequence and interval
+                faidx.fetch(chrom, start.try_into().unwrap(), pos.try_into().unwrap()).expect("Could not fetch interval");
+                start = pos + 1;
+            }
         }
         // move the pointer in the index to the desired sequence and interval
-        faidx.fetch(chrom, start.try_into().unwrap(), end.try_into().unwrap()).expect("Could not fetch interval");
+        //faidx.fetch(chrom, start.try_into().unwrap(), pos.try_into().unwrap()).expect("Could not fetch interval");
         // read the subsequence defined by the interval into a vector
         let mut seq = Vec::new();
         faidx.read(&mut seq).expect("Could not read interval");
@@ -42,9 +74,11 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
         // get k-mers
         let ref_kmers: Vec<String> = common::get_canonical_kmers(&seq_string, *k as usize);
         result.extend(ref_kmers);
-        start = pos + 1;
+        //start = pos + 1;
+        //start_chrom = chrom;
     }
     // put kmers into hashset
+    println!("Putting all found k-mers into a hashset...");
     let ref_kmers_hashset: HashSet<String> = result.into_iter().collect();
     return ref_kmers_hashset;
 }
@@ -52,6 +86,7 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
 // open index and remove k-mers found in reference
 pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<String>) -> Result<Vec<Vec<Vec<String>>>, io::Error> {
 
+    println!("Opening index...");
     // open index
     let file = File::open(index)?;
     let reader = BufReader::new(file);
@@ -72,6 +107,7 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
         data.push(kmers_by_allele);
     }
 
+    println!("Removing k-mers found in non-variable sequences...");
     // remove any k-mers found in reference
     for inner_vec in &mut data {
         for inner_inner_vec in inner_vec{
@@ -80,6 +116,7 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
     }
 
     // output file
+    println!("Writing new index...");
     let mut buffered_file = BufWriter::new(File::create(output)?);
     // write remaining k-mers to new index
     // open index again

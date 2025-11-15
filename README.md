@@ -48,7 +48,7 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [ ] var-dedup: add more print messages
 
-- [ ] bug: var-dedup, variant at end of one chromosome and start of another chromosome are labeled as overlapping and skipped
+- [x] bug: var-dedup, variant at end of one chromosome and start of another chromosome are labeled as overlapping and skipped
 
 - [ ] bug: ref-dedup, lots of variants are skipped
 

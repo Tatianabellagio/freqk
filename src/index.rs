@@ -39,27 +39,6 @@ fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
     data
 }
 
-// read fai to get chrom lengths
-fn read_fai(fasta_path: &String) -> Result<HashMap<String, i64>, Box<dyn std::error::Error>> {
-    // open index
-    let mut fai_path = fasta_path.clone();
-    fai_path.push_str(".fai");
-    let file = File::open(fai_path)?;
-    let reader = BufReader::new(file);
-
-    // HashMap to store chrom lengths
-    let mut chrom_lengths: HashMap<String, i64> = HashMap::new();
-
-    // loop over file and get 
-    for line_result in reader.lines() {
-        let line = line_result?; // Handle potential errors reading the line
-        let fields: Vec<&str> = line.split('\t').collect();
-        let chrom_name = fields[0].to_string();
-        let chrom_length = fields[1].parse::<i64>();
-        chrom_lengths.insert(chrom_name, chrom_length?);
-    }
-    Ok(chrom_lengths)
-}
 
 // insert variant into reference, get k-mers for each variant
 pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &String, k: &i64) -> Option<Vec<i32>> {
@@ -70,7 +49,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
     let mut faidx = IndexedReader::from_file(fasta_path).unwrap();
 
     // read fasta index to get chrom_lengths
-    let chrom_lengths = read_fai(fasta_path);
+    let chrom_lengths = common::read_fai(fasta_path);
     println!("Chromosome lengths:");
     println!("{:?}", chrom_lengths);
 
