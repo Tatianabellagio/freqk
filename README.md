@@ -40,6 +40,16 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## To-do
 
+- [ ] check that REF allele matches fasta file
+
+- [ ] add input checkers, check that vcf is sorted for freqk index
+
+- [ ] add unit tests
+
+- [ ] add more methods to structs
+
+- [ ] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
+
 - [x] parallelize for loop over reads
 
 - [x] remove leftover code
@@ -60,17 +70,9 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] bug: ref-dedup, lots of variants are skipped
 
-- [ ] add more methods to structs
-
 - [x] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
 
-- [ ] add input checkers, check that vcf is sorted for freqk index
-
 - [x] dedeuplicate index: remove any k-mers that are shared across variants
-
-- [ ] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
-
-- [ ] add unit tests
 
 - [x] determine k-mer length from index
 
