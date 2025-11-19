@@ -66,8 +66,6 @@ enum Commands {
         fasta: String,
         #[arg(short,long, help = "vcf file of variations between reference and other genomes")]
         vcf: String,
-        #[arg(short,long, help = "kmer length for building the index")]
-        kmer: i64,
     },
 }
 
@@ -88,9 +86,9 @@ fn main() {
             println!("Deduplicating index across variants: {} {}", index, output);
             let _ = dedup::find_dup_kmers_across_var(index, output);
         }
-        Commands::RefDedup { index, output, fasta, vcf, kmer } => {
-            println!("Deduplicating index of reference k-mers: {} {} {} {} {}", index, output, fasta, vcf, kmer);
-            let ref_hash = dedup::reference_hashset(fasta, vcf, kmer);
+        Commands::RefDedup { index, output, fasta, vcf } => {
+            println!("Deduplicating index of reference k-mers: {} {} {} {}", index, output, fasta, vcf);
+            let ref_hash = dedup::reference_hashset(index, fasta, vcf);
             let _ = dedup::remove_ref_kmers(index, output, ref_hash);
         }
         Commands::Call { index, counts, output} => {

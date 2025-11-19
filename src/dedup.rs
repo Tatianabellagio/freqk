@@ -12,7 +12,11 @@ use crate::common;
 
 // look across non-variable reference regions
 // remove any allele-specific k-mers also found in these regions
-pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> HashSet<String> {
+pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String) -> HashSet<String> {
+    println!("Reading k-mer length from index...");
+    let k = common::k_from_index(index).expect("Error reading k-mer length from index.");
+    println!("k is: {:?}", k);
+
     println!("Build hashset of reference k-mers...");
     // rust-htslib provides VCF I/O.
     let mut vcf_reader = Reader::from_path(vcf_path).expect("Error opening file.");
@@ -44,7 +48,7 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
             let next_result = next_ref.as_ref().unwrap();
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
-            if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
+            if ((pos_next - pos) <= k)  && (chrom == chrom_next) {
                 println!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
                 vcf_iterator.next();
                 continue
@@ -72,10 +76,8 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
         // convert to string
         let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
         // get k-mers
-        let ref_kmers: Vec<String> = common::get_canonical_kmers(&seq_string, *k as usize);
+        let ref_kmers: Vec<String> = common::get_canonical_kmers(&seq_string, k as usize);
         result.extend(ref_kmers);
-        //start = pos + 1;
-        //start_chrom = chrom;
     }
     // put kmers into hashset
     println!("Putting all found k-mers into a hashset...");

@@ -6,39 +6,6 @@ use fastq::{parse_path as other_parse_path, Record as OtherRecord};
 
 use crate::common;
 
-// get kmer length from index
-pub fn k_from_index(index: &String) -> Result<i64, io::Error> {
-    // Open the file
-    let file = File::open(index)?;
-
-    // Create a buffered reader
-    let mut reader = BufReader::new(file);
-
-    // Create a string to store the first line
-    let mut first_line = String::new();
-
-    // Read the first line into the string
-    reader.read_line(&mut first_line)?;
-
-    // parse kmer list
-    let split_line: Vec<&str> = first_line.split(',').collect();
-    let kmers = split_line[7];
-    let kmers_list: Vec<&str> = kmers.split('|').collect();
-
-    let kmers_by_allele: Vec<Vec<&str>> = kmers_list
-    .iter()
-    .map(|s| s.split(';').collect())
-    .collect();
-
-    // Access the first inner vector
-    let first_inner_vec = &kmers_by_allele[0];
-
-    // Access the first element of that inner vector
-    let first_element = first_inner_vec[0];
-
-    return Ok(first_element.len() as i64);
-}
-
 // loads index from file and puts all allele-specific k-mers into a single hashset
 pub fn build_kmer_hashset(index: String) -> Result<HashSet<String>, io::Error> {
 
@@ -183,7 +150,7 @@ pub fn combine_counts_by_allele(index: &String, counts: HashMap<String, usize>) 
 }
 
 pub fn count_workflow(index: &String, reads: &String, nthreads: usize, freq_output: &String, count_output: &String) -> () {
-    let k = k_from_index(index);
+    let k = common::k_from_index(index);
     println!("k is: {:?}", k);
     let kmer_counts = count_target_kmers_in_reads(index.clone(), reads, k.expect("Cannot parse kmer length from index."), nthreads);
     let _ = write_kmers(kmer_counts.clone(), count_output);
