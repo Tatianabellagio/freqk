@@ -6,8 +6,6 @@ use std::io::{Write, BufWriter};
 use bio::bio_types::genome::AbstractLocus;
 use std::collections::HashSet;
 use std::collections::HashMap;
-use std::io::BufReader;
-use std::io::BufRead;
 use crate::common;
 
 // given a list of k-mers by allele

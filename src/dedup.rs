@@ -49,11 +49,11 @@ pub fn reference_hashset(fasta_path: &String, vcf_path: &String, k: &i64) -> Has
                 vcf_iterator.next();
                 continue
             }
-            if (chrom != chrom_next) {
+            if chrom != chrom_next {
                 println!("Chromosome boundry reached between CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
                 if let Some(chrom_end) = chrom_lengths.as_ref().expect("Error reading chromosome lengths").get(chrom) {
                     println!("Extracting sequence from POS: {} to end of {} at : {:?}", pos, chrom, chrom_end);
-                    faidx.fetch(chrom, pos.try_into().unwrap(), (*chrom_end as u64) ).expect("Could not fetch interval");
+                    faidx.fetch(chrom, pos.try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
                     start = 1; // start counter over at beginning of next chromosome
                 } else {
                     panic!("Error getting length of chromosome");
@@ -139,6 +139,7 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
 // look across variants to find shared kmers
 pub fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<Vec<Vec<String>>>, io::Error> {
     // open index
+    println!("Reading index...");
     let file = File::open(index)?;
     let reader = BufReader::new(file);
 
@@ -159,6 +160,7 @@ pub fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<
     }
 
     // first pass: count how many times k-mers are found across alleles
+    println!("First pass: counting allele-specific k-mers...");
     let mut counts: HashMap<String, usize> = HashMap::new();
 
     for inner_vec in &data {
@@ -179,6 +181,7 @@ pub fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<
     let dup_kmers_hashset: HashSet<String> = dup_kmers.into_iter().collect();
 
     // second pass: remove any k-mers that were duplicated
+    println!("Second pass: removing k-mers found more than once...");
     for inner_vec in &mut data {
         for inner_inner_vec in inner_vec{
             inner_inner_vec.retain(|s| !dup_kmers_hashset.contains(s));
@@ -186,6 +189,7 @@ pub fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<
     }
 
     // rewrite index with deduped k-mers
+    println!("Writing new index...");
     // output file
     let mut buffered_file = BufWriter::new(File::create(output)?);
 
@@ -213,5 +217,6 @@ pub fn find_dup_kmers_across_var(index: &String, output: &String) -> Result<Vec<
         i += 1;
     }
 
+    println!("Writing successful! :D");
     Ok(data)
 }
