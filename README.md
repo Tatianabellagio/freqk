@@ -4,11 +4,19 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## Inputs
 
-1. Reference path in fasta format
+1. Reference sequence in fasta format
 
 2. Index of fasta file `samtools faidx <ref fasta>`
 
-3. bgzipped VCF file of variants called against reference, variants should be phased and non-overlapping
+3. bgzipped VCF file of variants called against reference
+
+* sorted
+
+* bgzipped
+
+* non-overlapping
+
+* genome-wide
 
 4. Index of vcf file
 
@@ -46,7 +54,7 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 - [x] check that reference sequence in vcf matches fasta
 
-- [ ] var-dedup: add more print messages
+- [x] var-dedup: add more print messages
 
 - [x] bug: var-dedup, variant at end of one chromosome and start of another chromosome are labeled as overlapping and skipped
 
