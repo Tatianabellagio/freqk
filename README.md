@@ -22,6 +22,8 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 4. Index of vcf file
 
+5. Pooled DNA sequencing reads
+
 ## Usage
 
 1. Index the panel of reference variants
