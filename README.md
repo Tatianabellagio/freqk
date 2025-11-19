@@ -40,6 +40,8 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## To-do
 
+- [ ] get k-mer length from index in ref-dedup
+
 - [ ] check that REF allele matches fasta file
 
 - [ ] add input checkers, check that vcf is sorted for freqk index
