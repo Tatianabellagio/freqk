@@ -118,25 +118,25 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             var_seq.replace_range(ku..ku+ref_allele_len, allele);
             var_seqs.push(var_seq);
         }
+        // check if REF allele matches fasta file
+        if var_seqs[0] != seq_string {
+            panic!("ERROR: REF allele does not match fasta file at CHROM: {} POS: {} \n FASTA: {} \n VCF: {}", chrom, pos, &var_seqs[0], &seq_string);
+        }
         // get k-mers
         let mut kmers_by_allele = Vec::new();
         for var_seq in &var_seqs {
             let kmer_list: Vec<String> = common::get_canonical_kmers(var_seq, ku);
             kmers_by_allele.push(kmer_list);
         }
-
         // remove kmers shared across alleles
         let kmers_by_allele_no_dups = find_dup_kmers(kmers_by_allele);
-
         let mut joined_kmers_list: Vec<String> = Vec::new();
         let mut num_kmers_per_allele: Vec<String> = Vec::new();
-
         for inner_vec in kmers_by_allele_no_dups {
             let inner_joined = inner_vec.join(";");
             joined_kmers_list.push(inner_joined);
             num_kmers_per_allele.push(inner_vec.len().to_string());
         }
-
         // write index to output file
         let parts = vec![i.to_string(), chrom.to_string(), pos.to_string(), seq_string.clone(), alleles_list.join("|"), var_seqs.join("|"), num_kmers_per_allele.join("|"), joined_kmers_list.join("|")];
         writeln!(buffered_file, "{}", parts.join(",")).ok()?;
