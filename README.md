@@ -4,19 +4,21 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 ## Installation
 
+Grab rust binary from release page
+
 ## Inputs
 
 1. Reference sequence in fasta format
 
 2. Index of fasta file `samtools faidx <ref fasta>`
 
-3. bgzipped VCF file of variants called against reference
+3. VCF file of variants called against reference, should be 
 
 * sorted
 
 * bgzipped
 
-* non-overlapping
+* only non-overlapping
 
 * genome-wide
 
@@ -28,7 +30,7 @@ Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 1. Index the panel of reference variants
 
-`./target/debug/freqk index -f tests/1.fasta -v tests/1.vcf.gz -o index.txt -k 31`
+`freqk index -f tests/1.fasta -v tests/1.vcf.gz -o index.txt -k 31`
 
 2. (Optional but recommended) Deduplicate index
 
