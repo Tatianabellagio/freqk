@@ -54,6 +54,10 @@ This step just divides the counts of allele-specific k-mers in the reads by the 
 
 ## To-do
 
+- [ ] hash info for variants so that you skip duplicates?
+
+- [x] skip invariant sites, sites where REF and ALT are the same or there is no ALT information
+
 - [x] get k-mer length from index in ref-dedup
 
 - [x] check that REF allele matches fasta file

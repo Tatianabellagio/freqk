@@ -99,6 +99,14 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
              }
             alleles.push(' ')
         }
+        // Split the string by whitespace and collect into a Vec<&str>
+        let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
+        // check if site is not variable
+        //if alleles_list[0] == alleles_list[1] {
+        if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
+            println!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
+            continue
+        }
         // move the pointer in the index to the desired sequence and interval
         faidx.fetch(chrom, (pos - k + 1).try_into().unwrap(), (pos + k).try_into().unwrap() ).expect("Couldn't fetch interval");
         // read the subsequence defined by the interval into a vector
@@ -107,7 +115,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // convert to string
         let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
         // Split the string by whitespace and collect into a Vec<&str>
-        let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
+        //let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
         // insert alleles into reference sequence to get variable sequences 
         // replace reference allele with variant allele
         let mut var_seqs = Vec::new();
