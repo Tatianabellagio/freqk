@@ -6,45 +6,8 @@ use fastq::{parse_path as other_parse_path, Record as OtherRecord};
 
 use crate::common;
 
-// get kmer length from index
-pub fn k_from_index(index: &String) -> Result<i64, io::Error> {
-    // Open the file
-    let file = File::open(index)?;
-
-    // Create a buffered reader
-    let mut reader = BufReader::new(file);
-
-    // Create a string to store the first line
-    let mut first_line = String::new();
-
-    // Read the first line into the string
-    reader.read_line(&mut first_line)?;
-
-    // parse kmer list
-    let split_line: Vec<&str> = first_line.split(',').collect();
-    let kmers = split_line[7];
-    let kmers_list: Vec<&str> = kmers.split('|').collect();
-
-    let kmers_by_allele: Vec<Vec<&str>> = kmers_list
-    .iter()
-    .map(|s| s.split(';').collect())
-    .collect();
-
-    // Access the first inner vector
-    let first_inner_vec = &kmers_by_allele[0];
-
-    // Access the first element of that inner vector
-    let first_element = first_inner_vec[0];
-
-    return Ok(first_element.len() as i64);
-}
-
-
 // loads index from file and puts all allele-specific k-mers into a single hashset
 pub fn build_kmer_hashset(index: String) -> Result<HashSet<String>, io::Error> {
-
-    println!("Loading index at {} into a hashset...", index);
-
     // open index
     let file = File::open(index)?;
     let reader = BufReader::new(file);
@@ -94,11 +57,10 @@ pub fn count_target_kmers_in_reads(index: String, reads: &String, k: i64, nthrea
             let mut kmer_counts: HashMap<String, usize> = HashMap::new();
             let kmers_hashset = build_kmer_hashset(index.clone()).expect("Reason");
             let mut num_records = 0;
-            println!("Looping over reads...");
             for record_set in record_sets {
                 for record in record_set.iter() {
                     if num_records % 10000 == 0 {
-                        println!("Reads processed: {}", num_records);
+                        log::info!("Reads processed: {}", num_records);
                     }
                     num_records += 1;
                     let read_kmers = common::get_canonical_kmers( std::str::from_utf8( record.seq() ).expect("REASON"), k.try_into().unwrap());
@@ -117,7 +79,7 @@ pub fn count_target_kmers_in_reads(index: String, reads: &String, k: i64, nthrea
             // error handling.
             kmer_counts
         }).expect("Invalid fastq file");
-        println!("Merging hashmaps...");
+        log::debug!("Merging hashmaps...");
         let merged_counts = merge_hashmaps(results);
         //println!("{:?}", kmer_counts);
         merged_counts
@@ -127,7 +89,6 @@ pub fn count_target_kmers_in_reads(index: String, reads: &String, k: i64, nthrea
 
 // write k-mer counts to file
 pub fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::Result<()> {
-    println!("Writing k-mer counts to {}", output);
     // Open the file for writing
     let mut file = File::create(output)?;
 
@@ -136,16 +97,12 @@ pub fn write_kmers(kmer_counts: HashMap<String, usize>, output: &String) -> io::
         writeln!(file, "{}\t{}", key, value)?;
     }
 
-    println!("Counts successfully written to {}", output);
-
     Ok(())
 }
 
 // turn k-mer counts into totals per allele
 // should reflect underlying allele frequencies
 pub fn combine_counts_by_allele(index: &String, counts: HashMap<String, usize>) -> Result<Vec<String>, io::Error> {
-
-    println!("Combining counts by allele...");
 
     // open index
     let file = File::open(index)?;
@@ -183,19 +140,16 @@ pub fn combine_counts_by_allele(index: &String, counts: HashMap<String, usize>) 
     Ok(result)
 }
 
-pub fn write_counts_by_allele(counts_by_allele: Vec<String>, output: &String) -> io::Result<()>{
-
-    println!("Writing counts by allele to {}", output);
-    // Open the file for writing
-    let mut file = File::create(output)?;
-
-    // Iterate over the HashMap and write each entry to the file
-    for element in counts_by_allele.iter() {
-        writeln!(file, "{}", element)?;
-    }
-
-    println!("Counts successfully written.");
-
-    Ok(())
-
+pub fn count_workflow(index: &String, reads: &String, nthreads: usize, freq_output: &String, count_output: &String) -> () {
+    log::info!("Loading index at {} into a hashset...", index);
+    let k = common::k_from_index(index);
+    log::info!("k is: {:?}", k);
+    log::debug!("Counting indexed k-mers in reads...");
+    let kmer_counts = count_target_kmers_in_reads(index.clone(), reads, k.expect("Cannot parse kmer length from index."), nthreads);
+    let _ = write_kmers(kmer_counts.clone(), count_output);
+    log::debug!("Combining k-mer counts by allele...");
+    let counts_by_allele = combine_counts_by_allele(index, kmer_counts);
+    log::debug!("Writing counts by allele...");
+    let _ = common::write_strings(counts_by_allele.expect("Error writing counts by allele"), freq_output);
+    log::debug!("Successfully wrote counts by allele!");
 }

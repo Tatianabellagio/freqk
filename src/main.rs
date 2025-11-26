@@ -4,12 +4,15 @@ mod common;
 mod index;
 mod dedup;
 mod count;
+mod call;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    #[command(flatten)]
+    verbosity: clap_verbosity_flag::Verbosity,
 }
 
 
@@ -19,23 +22,27 @@ enum Commands {
     Index {
         #[arg(short,long, help = "fasta file of reference genome")]
         fasta: String,
-        #[arg(short,long, help = "vcf file of variations between reference and other genomes")]
+        #[arg(long, help = "vcf file of variations between reference and other genomes")]
         vcf: String,
-        #[arg(short,long, help = "name of the index file to be made")]
+        #[arg(short,long, help = "name of the index file to be output")]
         output: String,
-        #[arg(short,long, help = "kmer length")]
+        #[arg(short,long, help = "kmer length for building the index")]
         kmer: i64,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
     },
-    /// Deduplicate index: remove k-mers shared across variants
-    Dedup {
+    /// Deduplicate index of k-mers shared across variants
+    VarDedup {
         #[arg(short,long, help = "name of index file")]
         index: String,
         #[arg(short,long, help = "name of deduplicated index")]
         output: String,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
     },
     /// Count k-mers by allele
     Count {
-        #[arg(short,long, help = "name of index files")]
+        #[arg(short,long, help = "name of index file")]
         index: String,
         #[arg(short,long, help = "comma-separated list of reads in fastq format (can be gz or not)", value_delimiter = ',', value_name = "FILE")]
         reads: String,
@@ -45,6 +52,32 @@ enum Commands {
         freq_output: String,
         #[arg(short,long, help = "name of output for raw kmer counts")]
         count_output: String,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
+    },
+    /// Convert counts by allele into allele frequencies
+    Call {
+        #[arg(short,long, help = "name of index file")]
+        index: String,
+        #[arg(short,long, help = "name of file for counts by allele")]
+        counts: String,
+        #[arg(short,long, help = "name of output file with allele frequencies")]
+        output: String,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
+    },
+    /// Deduplicate index of reference k-mers 
+    RefDedup {
+        #[arg(short,long, help = "path to index file")]
+        index: String,
+        #[arg(short,long, help = "path to deduped index file")]
+        output: String,
+        #[arg(short,long, help = "fasta file of reference genome")]
+        fasta: String,
+        #[arg(long, help = "vcf file of variations between reference and other genomes")]
+        vcf: String,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
     },
 }
 
@@ -52,23 +85,36 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
+    env_logger::Builder::new()
+        .filter_level(cli.verbosity.log_level_filter())
+        .init();
+
     match &cli.command {
-        Commands::Index { fasta, vcf, output, kmer } => {
-            println!("fasta: {}, vcf: {}, k: {}", fasta, vcf, kmer);
-            index::insert_var(vcf, fasta, output, kmer);
+        Commands::Index { fasta, vcf, output, kmer, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("fasta: {}, vcf: {}, k: {}", fasta, vcf, kmer);
+            index::index_workflow(vcf, fasta, output, kmer);
         }
-        Commands::Count { index, reads, nthreads, freq_output, count_output } => {
-            println!("Counting k-mers: {}, {:?}, {}, {}, {}", index, reads, nthreads, freq_output, count_output);
-            let k = count::k_from_index(index);
-            println!("k is: {:?}", k);
-            let kmer_counts = count::count_target_kmers_in_reads(index.clone(), reads, k.expect("Cannot parse kmer length from index."), *nthreads);
-            let _ = count::write_kmers(kmer_counts.clone(), count_output);
-            let counts_by_allele = count::combine_counts_by_allele(index, kmer_counts);
-            let _ = count::write_counts_by_allele(counts_by_allele.expect("Error writing counts by allele"), freq_output);
+        Commands::Count { index, reads, nthreads, freq_output, count_output, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("Counting k-mers: INDEX: {}, READS: {:?}, NTHREADS: {}, FREQ OUTPUT: {}, COUNT OUTPUT: {}", index, reads, nthreads, freq_output, count_output);
+            count::count_workflow(index, reads, *nthreads, freq_output, count_output);
         }
-        Commands::Dedup { index, output } => {
-            println!("Deduplicating index: {} {}", index, output);
+        Commands::VarDedup { index, output, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("Deduplicating index across variants: INDEX: {} OUTPUT: {}", index, output);
             let _ = dedup::find_dup_kmers_across_var(index, output);
+        }
+        Commands::RefDedup { index, output, fasta, vcf, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("Deduplicating index of reference k-mers: INDEX: {} OUTPUT: {} FASTA: {} VCF: {}", index, output, fasta, vcf);
+            let ref_hash = dedup::reference_hashset(index, fasta, vcf);
+            let _ = dedup::remove_ref_kmers(index, output, ref_hash);
+        }
+        Commands::Call { index, counts, output, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("Converting counts to allele frequencies: {} {} {}", index, counts, output);
+            let _ = call::call_from_counts(index, counts, output);
         }
     }
 }
