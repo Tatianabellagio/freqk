@@ -56,6 +56,14 @@ This step just divides the counts of allele-specific k-mers in the reads by the 
 
 - [ ] hash info for variants so that you skip duplicates?
 
+- [ ] for ref-dedup, what to do if there are chromosomes in fasta that have no variants in vcf? 
+
+- [ ] for ref-dedup, put k-mers into hashset at end of each loop?
+
+- [ ] add verbose flag with clap, improve logging: https://rust-cli.github.io/book/tutorial/output.html
+
+- [ ] index step, for variants within k bp, only get k-mers that overlap one variant
+
 - [x] skip invariant sites, sites where REF and ALT are the same or there is no ALT information
 
 - [x] get k-mer length from index in ref-dedup
