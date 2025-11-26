@@ -3,7 +3,10 @@
 Estimate frequencies of known variants in pool-seq data from k-mer counts
 
 Author: Miles Roberts
+
 Contact: leave a github issue
+
+**Note:** Before leaving an issue, re-run the problematic command(s) with `-vvv` to get full debug information for that command and post the debug information with your issue.
 
 ## Installation
 
@@ -102,7 +105,7 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 - [ ] add more methods to structs
 
-- [ ] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
+- [x] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
 
 - [x] parallelize for loop over reads
 
