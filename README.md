@@ -81,11 +81,15 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
+- [ ] handle q-scores as well so that you don't have to do read trimming, though de-duplicating would probably still be good practice anyway?
+
 - [ ] hash info for variants so that you skip duplicates?
 
 - [ ] for ref-dedup, what to do if there are chromosomes in fasta that have no variants in vcf? 
 
-- [ ] for ref-dedup, put k-mers into hashset at end of each loop?
+- [x] ref-dedup, grab chromosome end if there's no next record in vcf
+
+- [x] for ref-dedup, put k-mers into hashset at end of each loop?
 
 - [x] add verbose flag with clap, improve logging: https://rust-cli.github.io/book/tutorial/output.html
 

@@ -31,11 +31,12 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
 
     // loop over variants a
     let mut start = 1;
+    let mut ref_kmers_hashset = HashSet::new();
     //let mut start_chrom = "";
     //let binding = vcf_reader.records().nth(0).unwrap().expect("Trouble reading first vcf record");
     //let mut start_chrom = binding.contig();
     //let mut start_chrom = vcf_reader.records().nth(0).unwrap().expect("Trouble reading first vcf record").contig();
-    let mut result = Vec::new();
+    //let mut result = Vec::new();
     let mut vcf_iterator = vcf_reader.records().peekable();
     while let Some(record_result) = vcf_iterator.next() {
         let record = record_result.expect("Failure reading record");
@@ -69,21 +70,36 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
                 faidx.fetch(chrom, start.try_into().unwrap(), pos.try_into().unwrap()).expect("Could not fetch interval");
                 start = pos + 1;
             }
+        } else {
+            log::debug!("No next record, so end of VCF reached. Grab remainder of chromosome");
+            if let Some(chrom_end) = chrom_lengths.as_ref().expect("Error reading chromosome lengths").get(chrom) {
+                log::debug!("Extracting sequence on {} from {} to {}", chrom, pos, chrom_end);
+                faidx.fetch(chrom, pos.try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
+            } else {
+                log::error!("Error getting length of chromosome.");
+            }
         }
         // move the pointer in the index to the desired sequence and interval
         //faidx.fetch(chrom, start.try_into().unwrap(), pos.try_into().unwrap()).expect("Could not fetch interval");
         // read the subsequence defined by the interval into a vector
+        log::debug!("Reading sequence...");
         let mut seq = Vec::new();
         faidx.read(&mut seq).expect("Could not read interval");
         // convert to string
         let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
         // get k-mers
+        log::debug!("Extract canonical k-mers...");
         let ref_kmers: Vec<String> = common::get_canonical_kmers(&seq_string, k as usize);
-        result.extend(ref_kmers);
+        // put in hashset
+        log::debug!("Putting k-mers into hashset...");
+        for ref_kmer in ref_kmers {
+            ref_kmers_hashset.insert(ref_kmer);
+        }
+        //result.extend(ref_kmers);
     }
     // put kmers into hashset
-    log::info!("Putting all found k-mers into a hashset...");
-    let ref_kmers_hashset: HashSet<String> = result.into_iter().collect();
+    //log::info!("Putting all found k-mers into a hashset...");
+    //let ref_kmers_hashset: HashSet<String> = result.into_iter().collect();
     return ref_kmers_hashset;
 }
 
