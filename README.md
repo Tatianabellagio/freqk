@@ -2,6 +2,9 @@
 
 Estimate frequencies of known variants in pool-seq data from k-mer counts
 
+Author: Miles Roberts
+Contact: leave a github issue
+
 ## Installation
 
 Grab rust binary from release page
@@ -26,31 +29,52 @@ Grab rust binary from release page
 
 5. Pooled DNA sequencing reads
 
-## Usage
+## Outputs
+
+Estimates of allele frequencies for variants in the vcf file. These are output in a text file with pipe separators
+
+```
+0.01|0.99
+1|0
+0.75|0.25
+0.3|0.5|0.2
+```
+
+The number of alleles per site varies, so the number of entries per line varies. If you want to load this file in R. You can do something like the following
+
+## Quick start
 
 1. Index the panel of reference variants
 
-`freqk index -f tests/1.fasta -v tests/1.vcf.gz -o index.txt -k 31`
+`freqk index -f tests/1.fasta --vcf tests/1.vcf.gz -o index.txt -k 31`
 
 2. (Optional but recommended) Deduplicate index
 
-This step can be done in 2 stages. You can do one, both, or neither stages, but generally doing both before proceeding to the counting step (3) is strongly recommended for best results.
+This step can be done in 2 stages. You can do one, both, or neither stages in any order, but generally doing both before proceeding to the counting step (3) is strongly recommended for the most rigorous results.
+
+The faster of the two deduplication steps is `var-dedup`. This simply scans through the index and removes any allele-specific k-mers that are found at other variants in the index. For example:
 
 `freqk var-dedup --index index.txt --output dedup.txt`
 
-Another round of deduplication will remove any putatively allele-specific k-mers that are found elsewhere in the reference sequence. 
+The slower deduplication step is `ref-dedup`. This step removes any allele-specific k-mers that are found elsewhere in the reference sequence. 
 
-`freqk ref-dedup -i var_index.txt -o ref_index.txt -f tests/1.fasta -v tests/1.vcf.gz`
+`freqk ref-dedup -i var_index.txt -o ref_index.txt -f tests/1.fasta --vcf tests/1.vcf.gz`
 
-3. Count the indexed k-mers in the pool-seq reads using two threads (`-n 2`). 
+3. Count the indexed k-mers in the pool-seq reads (multithreaded). 
 
-`freqk count -i ref_index.txt -r tests/all.fastq.gz -n 2 -f count_by_allele.txt -c count_by_kmer.txt`
+For example, counting indexed k-mers with four threads (`-n 4`) looks like this:
+
+`freqk count -i ref_index.txt -r tests/all.fastq.gz -n 4 -f count_by_allele.txt -c count_by_kmer.txt`
 
 4. Normalize allele-specific k-mer counts into allele frequencies
 
 This step just divides the counts of allele-specific k-mers in the reads by the number of allele-specific k-mers in the index.
 
 `freqk call -i ref_index.txt -c counts_by_allele.txt -o calls.txt`
+
+## Command line interfaces
+
+All commands have a verbosity flag. Only errors are output by default, but adding `-v` will make warnings print, `-vv` means info will also print, and `-vvv` means debug data will print.
 
 ## To-do
 
@@ -60,7 +84,7 @@ This step just divides the counts of allele-specific k-mers in the reads by the 
 
 - [ ] for ref-dedup, put k-mers into hashset at end of each loop?
 
-- [ ] add verbose flag with clap, improve logging: https://rust-cli.github.io/book/tutorial/output.html
+- [x] add verbose flag with clap, improve logging: https://rust-cli.github.io/book/tutorial/output.html
 
 - [ ] index step, for variants within k bp, only get k-mers that overlap one variant
 

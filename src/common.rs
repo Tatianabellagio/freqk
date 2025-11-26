@@ -116,19 +116,12 @@ pub fn read_index_field(index: &String, column: usize) -> Result<Vec<Vec<String>
 
 // Write Vec<String> to a file
 pub fn write_strings(strings: Vec<String>, output: &String) -> io::Result<()>{
-
-    println!("Writing allele frequencies to: {}", output);
     // Open the file for writing
     let mut file = File::create(output)?;
-
     // Iterate over the HashMap and write each entry to the file
     for string in strings.iter() {
         writeln!(file, "{}", string)?;
     }
-
-    println!("Writing successful");
-
     Ok(())
-
 }
 

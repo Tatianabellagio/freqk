@@ -37,7 +37,7 @@ fn vec_vec_string_to_vec_vec_u32(string_vec_vec: Vec<Vec<String>>) -> Vec<Vec<u3
 // dividing two 2d arrays
 fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Result<Vec<Vec<f32>>, io::Error> {
     if vec_a.len() != vec_b.len() {
-        panic!("Vectors of different lengths");
+        log::error!("Vectors of different lengths");
     }
 
     let result: Vec<Vec<f32>> = vec_a
@@ -45,7 +45,7 @@ fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Resu
         .zip(vec_b.iter())
         .map(|(inner_a, inner_b)| {
             if inner_a.len() != inner_b.len() {
-                panic!("Inner vectors of different lengths");
+                log::error!("Inner vectors of different lengths");
             }
             inner_a
                 .iter()
@@ -53,7 +53,7 @@ fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Resu
                 .map(|(&a, &b)| {
                     if b == 0 {
                         // if we divide by zero, just replace zero so that results are NaN
-                        //println!("Division by zero detected");
+                        log::warn!("Division by zero detected because there are zero allele-specific k-mers for a particular variant (frequency estimate will be NaN).");
                         0 as f32
                     } else {
                         (a as f32)/(b as f32)
@@ -88,27 +88,35 @@ fn normalized_counts_to_allele_freq(norm_counts: Vec<Vec<f32>>) -> Vec<Vec<f32>>
 // BRING IT ALL TOGETHER! :D
 pub fn call_from_counts(index: &String, counts: &String, output: &String) -> Result<(), io::Error> {
     // parse number of allele-specific k-mers from index
+    log::info!("Reading index for number of unique k-mers per allele...");
     let num_uniq_kmers_per_allele = common::read_index_field(index, 6);
     // convert to u32
+    log::info!("Converting data to u32...");
     let num_uniq_kmers_per_allele_u32 = vec_vec_string_to_vec_vec_u32(num_uniq_kmers_per_allele?);
     // parse counts file
+    log::info!("Parsing counts by allele...");
     let file = File::open(counts)?;
     let reader = BufReader::new(file);
     let mut kmer_counts_per_allele = Vec::new();
     for line_result in reader.lines() {
         let line = line_result?;
         let fields: Vec<String> = line.split('|').map(|s| s.to_owned()).collect();
+        log::debug!("Parsed counts by allele: {:?}", fields);
         kmer_counts_per_allele.push(fields);
     }
     // convert to u32
+    log::info!("Converting data to u32...");
     let kmer_counts_per_allele_u32 = vec_vec_string_to_vec_vec_u32(kmer_counts_per_allele);
-    // normalize k-mer counts by number of alleles
+    // normalize k-mer counts
+    log::info!("Normalizing k-mer counts by number of allele-specific k-mers...");
     let counts_per_kmer = elementwise_division_2d(&kmer_counts_per_allele_u32, &num_uniq_kmers_per_allele_u32);
-    // get allele frequencies 
+    // get allele frequencies
+    log::info!("Converting normalized counts to allele frequencies...");
     let allele_freq = Karray {
         counts: normalized_counts_to_allele_freq(counts_per_kmer?),
     };
     // write frequencies to file
+    log::info!("Writing allele frequency estimates to {}", output);
     allele_freq.write(output);
     Ok(())
 }
