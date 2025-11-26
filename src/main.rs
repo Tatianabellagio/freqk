@@ -6,11 +6,13 @@ mod dedup;
 mod count;
 mod call;
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    #[command(flatten)]
+    verbosity: clap_verbosity_flag::Verbosity,
 }
 
 
@@ -20,12 +22,14 @@ enum Commands {
     Index {
         #[arg(short,long, help = "fasta file of reference genome")]
         fasta: String,
-        #[arg(short,long, help = "vcf file of variations between reference and other genomes")]
+        #[arg(long, help = "vcf file of variations between reference and other genomes")]
         vcf: String,
         #[arg(short,long, help = "name of the index file to be output")]
         output: String,
         #[arg(short,long, help = "kmer length for building the index")]
         kmer: i64,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
     },
     /// Deduplicate index of k-mers shared across variants
     VarDedup {
@@ -46,6 +50,8 @@ enum Commands {
         freq_output: String,
         #[arg(short,long, help = "name of output for raw kmer counts")]
         count_output: String,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
     },
     /// Convert counts by allele into allele frequencies
     Call {
@@ -64,7 +70,7 @@ enum Commands {
         output: String,
         #[arg(short,long, help = "fasta file of reference genome")]
         fasta: String,
-        #[arg(short,long, help = "vcf file of variations between reference and other genomes")]
+        #[arg(long, help = "vcf file of variations between reference and other genomes")]
         vcf: String,
     },
 }
@@ -73,13 +79,19 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
+    env_logger::Builder::new()
+        .filter_level(cli.verbosity.log_level_filter())
+        .init();
+
     match &cli.command {
-        Commands::Index { fasta, vcf, output, kmer } => {
-            println!("fasta: {}, vcf: {}, k: {}", fasta, vcf, kmer);
+        Commands::Index { fasta, vcf, output, kmer, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("fasta: {}, vcf: {}, k: {}", fasta, vcf, kmer);
             index::index_workflow(vcf, fasta, output, kmer);
         }
-        Commands::Count { index, reads, nthreads, freq_output, count_output } => {
-            println!("Counting k-mers: {}, {:?}, {}, {}, {}", index, reads, nthreads, freq_output, count_output);
+        Commands::Count { index, reads, nthreads, freq_output, count_output, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("Counting k-mers: {}, {:?}, {}, {}, {}", index, reads, nthreads, freq_output, count_output);
             count::count_workflow(index, reads, *nthreads, freq_output, count_output);
         }
         Commands::VarDedup { index, output } => {

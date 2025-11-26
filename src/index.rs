@@ -48,8 +48,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
 
     // read fasta index to get chrom_lengths
     let chrom_lengths = common::read_fai(fasta_path);
-    println!("Chromosome lengths:");
-    println!("{:?}", chrom_lengths);
+    log::info!("Chromosome lengths:");
+    log::info!("{:?}", chrom_lengths);
 
     // output file
     let mut buffered_file = BufWriter::new(File::create(output_path).ok()?);
@@ -62,20 +62,20 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         let record = record_result.expect("Failed to read record!");
         let pos = record.pos() - 1;
         let chrom = record.contig();
+        log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
         // check if variant near chromosome ends or not found in reference
         if let Some(num_ref) = chrom_lengths.as_ref().expect("Failed to read .fa.fai file!").get(chrom) {
             let end = *num_ref;
             if pos >= (end - k){
-                println!("Variant near chromosome end detected, skipping CHROM: {} POS: {}", chrom, pos);
+                log::warn!("Variant near chromosome end detected, skipping CHROM: {} POS: {}", chrom, pos);
                 continue
             }
         } else {
-            println!("Warning: {} not found in .fa.fai file!", chrom);
-            println!("Thus, will skip CHROM: {} POS: {}", chrom, pos);
+            log::warn!("Warning: {} not found in .fa.fai file! Thus, will skip CHROM: {} POS: {}", chrom, chrom, pos);
             continue
         }
         if pos <= *k {
-            println!("Variant near chromosome start detected, skipping CHROM: {} POS: {}", chrom, pos);
+            log::warn!("Variant near chromosome start detected, skipping CHROM: {} POS: {}", chrom, pos);
             continue
         }
         // until you reach the end of the next file, peek at the next vcf record and see if it
@@ -86,12 +86,13 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
             if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
-                println!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
+                log::warn!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
                 vcf_iterator.next();
                 continue
             }
         }
         // construct sequences for alleles
+        log::debug!("Extracting allele sequences from VCF...");
         let mut alleles = String::new();
         for allele in record.alleles() {
             for c in allele {
@@ -104,7 +105,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // check if site is not variable
         //if alleles_list[0] == alleles_list[1] {
         if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
-            println!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
+            log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
             continue
         }
         // move the pointer in the index to the desired sequence and interval
@@ -128,15 +129,17 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         // check if REF allele matches fasta file
         if var_seqs[0] != seq_string {
-            panic!("ERROR: REF allele does not match fasta file at CHROM: {} POS: {} \n FASTA: {} \n VCF: {}", chrom, pos, &var_seqs[0], &seq_string);
+            log::error!("REF allele does not match FASTA at CHROM: {} POS: {} \n FASTA: {} \n VCF: {}. Was the FASTA used as the reference to make the VCF?", chrom, pos, &var_seqs[0], &seq_string);
         }
         // get k-mers
+        log::debug!("Extracting canonical k-mers from alleles...");
         let mut kmers_by_allele = Vec::new();
         for var_seq in &var_seqs {
             let kmer_list: Vec<String> = common::get_canonical_kmers(var_seq, ku);
             kmers_by_allele.push(kmer_list);
         }
         // remove kmers shared across alleles
+        log::debug!("Dedupping k-mers shared across alleles of the same locus...");
         let kmers_by_allele_no_dups = find_dup_kmers(kmers_by_allele);
         let mut joined_kmers_list: Vec<String> = Vec::new();
         let mut num_kmers_per_allele: Vec<String> = Vec::new();
