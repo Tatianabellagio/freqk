@@ -32,6 +32,7 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
     // loop over variants a
     let mut start = 1;
     let mut ref_kmers_hashset = HashSet::new();
+    let mut chrom_visited: HashSet<String> = HashSet::new();
     //let mut start_chrom = "";
     //let binding = vcf_reader.records().nth(0).unwrap().expect("Trouble reading first vcf record");
     //let mut start_chrom = binding.contig();
@@ -42,6 +43,8 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
         let record = record_result.expect("Failure reading record");
         let pos = record.pos() - 1;
         let chrom = record.contig();
+        //track that we visited this chromosome
+        chrom_visited.insert(chrom.into());
         // until you reach the end of the next file, peek at the next vcf record and see if it
         // overlaps with the current record, if there is an overlap then skip both this and the
         // next record
@@ -96,6 +99,32 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
             ref_kmers_hashset.insert(ref_kmer);
         }
         //result.extend(ref_kmers);
+    }
+    // go to any unvisited chromosomes and get their sequences too
+    let binding = chrom_lengths.as_ref().expect("Error unpacking chromosome lengths");
+    let unvisted_chroms: Vec<String> = binding.keys().filter(|x| !chrom_visited.contains(*x)).cloned().collect();
+    log::warn!("Unvisited chromosomes: {:?}", &unvisted_chroms);
+    let mut unvis_iter = unvisted_chroms.into_iter();
+    while let Some(unvis_chrom) = unvis_iter.next() {
+        if let Some(chrom_end) = chrom_lengths.as_ref().expect("Error reading chromosome lengths").get(&unvis_chrom) {
+                log::debug!("Extracting sequence on {:?} from 1 to {}", unvis_chrom, chrom_end);
+                faidx.fetch(&unvis_chrom, 1, *chrom_end as u64 ).expect("Could not fetch interval");
+                log::debug!("Reading sequence...");
+                let mut seq = Vec::new();
+                faidx.read(&mut seq).expect("Could not read interval");
+                // convert to string
+                let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
+                // get k-mers
+                log::debug!("Extract canonical k-mers...");
+                let ref_kmers: Vec<String> = common::get_canonical_kmers(&seq_string, k as usize);
+                // put in hashset
+                log::debug!("Putting k-mers into hashset...");
+                for ref_kmer in ref_kmers {
+                    ref_kmers_hashset.insert(ref_kmer);
+                }
+            } else {
+                log::error!("Error getting length of chromosome.");
+            }
     }
     // put kmers into hashset
     //log::info!("Putting all found k-mers into a hashset...");

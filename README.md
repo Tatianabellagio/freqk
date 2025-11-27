@@ -85,7 +85,7 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 - [ ] hash info for variants so that you skip duplicates?
 
-- [ ] for ref-dedup, what to do if there are chromosomes in fasta that have no variants in vcf? 
+- [x] for ref-dedup, what to do if there are chromosomes in fasta that have no variants in vcf? 
 
 - [x] ref-dedup, grab chromosome end if there's no next record in vcf
 
