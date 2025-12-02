@@ -62,13 +62,23 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         let record = record_result.expect("Failed to read record!");
         let pos = record.pos() - 1;
         let chrom = record.contig();
+        let mut ku = *k as usize;
         log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
+        // get putative region, but check edge cases
+        let mut region_start = pos - k + 1;
+        let region_end = pos + k;
         // check if variant near chromosome ends or not found in reference
         if let Some(num_ref) = chrom_lengths.as_ref().expect("Failed to read .fa.fai file!").get(chrom) {
             let end = *num_ref;
+            if end < *k {
+                log::warn!("Chromosome shorter than k, skipping CHROM: {} POS: {}", chrom, pos);
+                continue
+            }
             if pos >= (end - k){
                 log::warn!("Variant near chromosome end detected, skipping CHROM: {} POS: {}", chrom, pos);
                 continue
+                //region_end = end;
+                //ku = 
             }
         } else {
             log::warn!("Warning: {} not found in .fa.fai file! Thus, will skip CHROM: {} POS: {}", chrom, chrom, pos);
@@ -76,7 +86,9 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         if pos <= *k {
             log::warn!("Variant near chromosome start detected, skipping CHROM: {} POS: {}", chrom, pos);
-            continue
+            //continue
+            region_start = 1;
+            ku = (pos + 4) as usize;
         }
         // until you reach the end of the next file, peek at the next vcf record and see if it
         // overlaps with the current record, if there is an overlap then skip both this and the
@@ -109,7 +121,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             continue
         }
         // move the pointer in the index to the desired sequence and interval
-        faidx.fetch(chrom, (pos - k + 1).try_into().unwrap(), (pos + k).try_into().unwrap() ).expect("Couldn't fetch interval");
+        faidx.fetch(chrom, region_start.try_into().unwrap(), region_end.try_into().unwrap() ).expect("Couldn't fetch interval");
         // read the subsequence defined by the interval into a vector
         let mut seq = Vec::new();
         faidx.read(&mut seq).expect("Couldn't read the interval");
@@ -120,7 +132,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // insert alleles into reference sequence to get variable sequences 
         // replace reference allele with variant allele
         let mut var_seqs = Vec::new();
-        let ku = *k as usize;
+        //let ku = *k as usize;
         let ref_allele_len = alleles_list[0].len();
         for allele in &alleles_list {
             let mut var_seq = seq_string.clone();
@@ -129,13 +141,13 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         // check if REF allele matches fasta file
         if var_seqs[0] != seq_string {
-            log::error!("REF allele does not match FASTA at CHROM: {} POS: {} \n FASTA: {} \n VCF: {}. Was the FASTA used as the reference to make the VCF?", chrom, pos, &var_seqs[0], &seq_string);
+            log::error!("REF allele does not match FASTA at CHROM: {} POS: {} \n FASTA: {} \n VCF  : {} \n REF: {}. Was the FASTA used as the reference to make the VCF?", chrom, pos, &var_seqs[0], &seq_string, &alleles_list[0]);
         }
         // get k-mers
         log::debug!("Extracting canonical k-mers from alleles...");
         let mut kmers_by_allele = Vec::new();
         for var_seq in &var_seqs {
-            let kmer_list: Vec<String> = common::get_canonical_kmers(var_seq, ku);
+            let kmer_list: Vec<String> = common::get_canonical_kmers(var_seq, *k as usize);
             kmers_by_allele.push(kmer_list);
         }
         // remove kmers shared across alleles
