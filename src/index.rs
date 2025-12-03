@@ -56,6 +56,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
 
     // iterate through each row of the vcf body.i
     let mut i = 0;
+    let mut chrom_prev = String::new();
+    let mut pos_prev = 0;
     let mut vcf_iterator = vcf_reader.records().peekable();
     while let Some(record_result) = vcf_iterator.next() {
         i += 1;
@@ -67,6 +69,10 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // get putative region, but check edge cases
         let mut region_start = pos - k + 1;
         let mut region_end = pos + k;
+        // check if vcf is sorted
+        if (pos_prev > pos) && (chrom == chrom_prev) {
+            log::error!("VCF is not sorted! CHROM: {} POS: {} occurs before CHROM: {} POS: {}", chrom_prev, pos_prev, chrom, pos);
+        }
         // check if variant near chromosome ends or not found in reference
         if let Some(num_ref) = chrom_lengths.as_ref().expect("Failed to read .fa.fai file!").get(chrom) {
             let end = *num_ref;
@@ -99,9 +105,18 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             let chrom_next = next_result.contig();
             if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
                 log::warn!("Overlapping pair of variants detected, skipping CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
+                pos_prev = pos_next;
+                chrom_prev = chrom_next.to_string();
                 vcf_iterator.next();
                 continue
             }
+        }
+        // check if current variant overlaps with the variant behind it
+        if ((pos - pos_prev) <= *k) && (chrom == chrom_prev) {
+            log::warn!("Current variant overlaps previous variant");
+            pos_prev = pos;
+            chrom_prev = chrom.to_string();
+            continue
         }
         // construct sequences for alleles
         log::debug!("Extracting allele sequences from VCF...");
@@ -163,6 +178,9 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // write index to output file
         let parts = vec![i.to_string(), chrom.to_string(), pos.to_string(), seq_string.clone(), alleles_list.join("|"), var_seqs.join("|"), num_kmers_per_allele.join("|"), joined_kmers_list.join("|")];
         writeln!(buffered_file, "{}", parts.join(",")).ok()?;
+        // save location of previous variant
+        chrom_prev = chrom.to_string();
+        pos_prev = pos;
     }
     None
 }
