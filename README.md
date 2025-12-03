@@ -24,13 +24,13 @@ Grab rust binary from release page
 
 * bgzipped
 
-* only non-overlapping
+* normalized (variants at same position are represented as one multiallelic record)
 
 * genome-wide
 
 4. Index of vcf file
 
-5. Pooled DNA sequencing reads
+5. Pooled DNA sequencing reads in a single fastq file (read pairing does not matter)
 
 ## Outputs
 
@@ -95,7 +95,7 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 - [x] add verbose flag with clap, improve logging: https://rust-cli.github.io/book/tutorial/output.html
 
-- [ ] index step, for variants within k bp, only get k-mers that overlap one variant
+- [x] index step, for variants within k bp, only get k-mers that overlap one variant
 
 - [x] skip invariant sites, sites where REF and ALT are the same or there is no ALT information
 
@@ -105,7 +105,7 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 - [ ] add typical counting speed (number of 150 bp reads per second per thread) to README
 
-- [ ] add input checkers, check that vcf is sorted for freqk index
+- [x] add input checkers, check that vcf is sorted for freqk index
 
 - [ ] add unit tests
 
