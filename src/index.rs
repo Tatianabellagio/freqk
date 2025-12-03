@@ -66,7 +66,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
         // get putative region, but check edge cases
         let mut region_start = pos - k + 1;
-        let region_end = pos + k;
+        let mut region_end = pos + k;
         // check if variant near chromosome ends or not found in reference
         if let Some(num_ref) = chrom_lengths.as_ref().expect("Failed to read .fa.fai file!").get(chrom) {
             let end = *num_ref;
@@ -76,9 +76,9 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             }
             if pos >= (end - k){
                 log::warn!("Variant near chromosome end detected, skipping CHROM: {} POS: {}", chrom, pos);
-                continue
-                //region_end = end;
-                //ku = 
+                //continue
+                region_end = end;
+                ku = (*k + 4) as usize;
             }
         } else {
             log::warn!("Warning: {} not found in .fa.fai file! Thus, will skip CHROM: {} POS: {}", chrom, chrom, pos);
@@ -141,7 +141,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         // check if REF allele matches fasta file
         if var_seqs[0] != seq_string {
-            log::error!("REF allele does not match FASTA at CHROM: {} POS: {} \n FASTA: {} \n VCF  : {} \n REF: {}. Was the FASTA used as the reference to make the VCF?", chrom, pos, &var_seqs[0], &seq_string, &alleles_list[0]);
+            log::error!("REF allele does not match FASTA at CHROM: {} POS: {}\nFASTA: {}\nVCF  : {}\nREF: {}\nWas the FASTA used as the reference to make the VCF?", chrom, pos, &var_seqs[0], &seq_string, &alleles_list[0]);
         }
         // get k-mers
         log::debug!("Extracting canonical k-mers from alleles...");
