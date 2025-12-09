@@ -81,9 +81,17 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
-- [ ] handle q-scores as well so that you don't have to do read trimming, though de-duplicating would probably still be good practice anyway?
+- [ ] add typical counting speed
+
+- [ ] add unit tests
+
+- [ ] add methods to structs
 
 - [ ] hash info for variants so that you skip duplicates?
+
+- [ ] cleanup hetmers subcommand
+
+- [ ] add q-mers?
 
 - [x] trim beginning of sequence so that variants within k bp of chromosome start can be included
 
@@ -103,13 +111,7 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 - [x] check that REF allele matches fasta file
 
-- [ ] add typical counting speed (number of 150 bp reads per second per thread) to README
-
 - [x] add input checkers, check that vcf is sorted for freqk index
-
-- [ ] add unit tests
-
-- [ ] add more methods to structs
 
 - [x] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
 
