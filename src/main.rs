@@ -86,38 +86,30 @@ enum Commands {
         /// kmer count table file name
         #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
         inputs: Vec<String>,
-
         /// prefix for output files
         #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
         outputs: Vec<String>,
-
         /// minimum k-mer count
         #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
         minimums: Vec<usize>,
-
-    /// number of alleles in each hetmer
-    #[arg(short = 'l', long, default_value_t = 2)]
-    alleles: usize,
-
-    /// mean k-mer coverage
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
-    coverages: Vec<f64>,
-
-    /// pool size
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
-    pools: Vec<i32>,
-
-    /// shape parameter for prior distribution
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
-    alphas: Vec<f64>,
-
-    /// shape parameter for prior distribution
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
-    betas: Vec<f64>,
-
-    /// thresholds for determining if k-mer has abnormal copy number
-    #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
-    sigmas: Vec<f64>,
+        /// number of alleles in each hetmer
+        #[arg(short = 'l', long, default_value_t = 2)]
+        alleles: usize,
+        /// mean k-mer coverage
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        coverages: Vec<f64>,
+        /// pool size
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        pools: Vec<i32>,
+        /// shape parameter for prior distribution
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        alphas: Vec<f64>,
+        /// shape parameter for prior distribution
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        betas: Vec<f64>,
+        /// thresholds for determining if k-mer has abnormal copy number
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        sigmas: Vec<f64>,
         #[command(flatten)]
         verbosity: clap_verbosity_flag::Verbosity,
     }

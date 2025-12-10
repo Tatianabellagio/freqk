@@ -13,51 +13,42 @@ use crate::common;
 fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
     // first pass: count how many times k-mers are found across alleles
     let mut counts: HashMap<String, usize> = HashMap::new();
-
     for inner_vec in &data {
         for s in inner_vec {
             *counts.entry(s.to_string()).or_insert(0) += 1;
         }
     }
-
     // identify k-mers found more than once
     let dup_kmers: Vec<String> = counts
         .into_iter() 
         .filter(|(_key, value)| *value > 1) // Filter pairs where k-mer is non-unique
         .map(|(key, _value)| key) // get only the keys
         .collect(); // Collect the keys into a Vec
-
     let dup_kmers_hashset: HashSet<String> = dup_kmers.into_iter().collect();
-
     // second pass: remove any k-mers that were duplicated
     for inner_vec in &mut data {
         inner_vec.retain(|s| !dup_kmers_hashset.contains(s));
     }
-
     data
 }
-
 
 // insert variant into reference, get k-mers for each variant
 pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &String, k: &i64) -> Option<Vec<i32>> {
     // rust-htslib provides VCF I/O.
     let mut vcf_reader = Reader::from_path(vcf_path).expect("Error opening file.");
-
     // read indexed fasta file
     let mut faidx = IndexedReader::from_file(fasta_path).unwrap();
-
     // read fasta index to get chrom_lengths
     let chrom_lengths = common::read_fai(fasta_path);
     log::info!("Chromosome lengths:");
     log::info!("{:?}", chrom_lengths);
-
     // output file
     let mut buffered_file = BufWriter::new(File::create(output_path).ok()?);
-
-    // iterate through each row of the vcf body.i
+    // iterate through each row of the vcf body
     let mut i = 0;
     let mut chrom_prev = String::new();
     let mut pos_prev = 0;
+    let mut dup_tracker = HashSet::new();
     let mut vcf_iterator = vcf_reader.records().peekable();
     while let Some(record_result) = vcf_iterator.next() {
         i += 1;
@@ -69,10 +60,24 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // get putative region, but check edge cases
         let mut region_start = pos - k + 1;
         let mut region_end = pos + k;
+        // check if this variant position was found in previous iteration
+        let chrom_pos_str = pos.to_string() + "-" + chrom;
+        log::debug!("Checking for duplicate: {:?}", chrom_pos_str);
+        if dup_tracker.contains(&chrom_pos_str) {
+            log::warn!("Skipping duplicate variant found at CHROM: {} POS: {}", chrom, pos);
+            continue
+        }
+        dup_tracker.insert(chrom_pos_str);
+        // check if variant is at tip of chromosome
+        if pos < 1 {
+            log::warn!("Skipping variant at tip of chromosome: CHROM: {}, POS: {}", chrom, pos);
+            continue
+        }
         // check if vcf is sorted
         if (pos_prev > pos) && (chrom == chrom_prev) {
             log::error!("VCF is not sorted! CHROM: {} POS: {} occurs before CHROM: {} POS: {}", chrom_prev, pos_prev, chrom, pos);
-            continue
+            panic!();
+            //continue
         }
         // check if variant near chromosome ends or not found in reference
         if let Some(num_ref) = chrom_lengths.as_ref().expect("Failed to read .fa.fai file!").get(chrom) {
@@ -82,8 +87,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
                 continue
             }
             if pos >= (end - k){
-                log::warn!("Variant near chromosome end detected, CHROM: {} POS: {}", chrom, pos);
-                //continue
+                log::debug!("Variant near chromosome end detected, CHROM: {} POS: {}", chrom, pos);
                 region_end = end;
                 ku = (*k + 4) as usize;
             }
@@ -92,8 +96,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             continue
         }
         if pos <= *k {
-            log::warn!("Variant near chromosome start detected, CHROM: {} POS: {}", chrom, pos);
-            //continue
+            log::debug!("Variant near chromosome start detected, CHROM: {} POS: {}", chrom, pos);
             region_start = 1;
             ku = (pos + 4) as usize;
         }
@@ -105,13 +108,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
             if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
-                log::warn!("Current variant (CHROM: {} POS: {}) overlaps next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
+                log::debug!("Current variant (CHROM: {} POS: {}) overlaps next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
                 region_end = pos_next - 1;
-                //ku = (*k + 4) as usize;
-                //pos_prev = pos_next;
-                //chrom_prev = chrom_next.to_string();
-                //vcf_iterator.next();
-                //continue
             }
             if (pos_next - pos_prev <= *k) && (chrom_next == chrom_prev) {
                 log::warn!("Current variant (CHROM: {} POS: {}) is within k bp of previous and next variant. Skipping current variant.", chrom, pos);
@@ -122,12 +120,9 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         // check if current variant overlaps with the variant behind it
         if ((pos - pos_prev) <= *k) && (chrom == chrom_prev) {
-            log::warn!("Current variant (CHROM: {} POS: {}) overlaps previous variant (CHROM: {} POS: {}).", chrom, pos, chrom_prev, pos_prev);
+            log::debug!("Current variant (CHROM: {} POS: {}) overlaps previous variant (CHROM: {} POS: {}).", chrom, pos, chrom_prev, pos_prev);
             region_start = pos_prev + 1;
-            ku = (*k - (pos - pos_prev - 1)) as usize;
-            //pos_prev = pos;
-            //chrom_prev = chrom.to_string();
-            //continue
+            ku = (*k - (pos - pos_prev + 2)) as usize;
         }
         // construct sequences for alleles
         log::debug!("Extracting allele sequences from VCF...");
@@ -142,7 +137,6 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
         log::debug!("Alleles: {:?}", alleles_list);
         // check if site is not variable
-        //if alleles_list[0] == alleles_list[1] {
         if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
             log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
             continue
@@ -155,12 +149,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         // convert to string
         let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
         log::debug!("Sequence length: {}", seq_string.chars().count());
-        // Split the string by whitespace and collect into a Vec<&str>
-        //let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
         // insert alleles into reference sequence to get variable sequences 
-        // replace reference allele with variant allele
         let mut var_seqs = Vec::new();
-        //let ku = *k as usize;
         let ref_allele_len = alleles_list[0].len();
         log::debug!("Replace range from start: {} end: {}", ku, ku+ref_allele_len);
         for allele in &alleles_list {
@@ -170,7 +160,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         // check if REF allele matches fasta file
         if var_seqs[0] != seq_string {
-            log::error!("REF allele does not match FASTA at CHROM: {} POS: {}\nFASTA: {}\nVCF  : {}\nREF: {}\nWas the FASTA used as the reference to make the VCF?", chrom, pos, &var_seqs[0], &seq_string, &alleles_list[0]);
+            log::error!("REF allele does not match FASTA at CHROM: {} POS: {}\nFASTA : {}\nVCF   : {}\nREGION: {} \nREF: {}\nWas the FASTA used as the reference to make the VCF?", chrom, pos, &seq_string, &var_seqs[0], region_start.to_string() + "-" + &region_end.to_string(),&alleles_list[0]);
+            panic!();
         }
         // get k-mers
         log::debug!("Extracting canonical k-mers from alleles...");

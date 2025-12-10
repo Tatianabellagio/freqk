@@ -1,6 +1,5 @@
 use sha2::{Digest, Sha256};
 use std::f64;
-use std::collections::HashSet;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -182,47 +181,6 @@ pub fn kmers_to_hetmers(input: &String, output: &String, minimum: usize, alleles
     return hetmers;
 }
 
-
-//
-//
-//
-// TRASH FUNCTIONS
-//
-//
-
-// functions to process hetmers with 2 base differences
-fn drop_bases(s: String, positions: &Vec<usize>) -> String {
-
-    let filtered_s: String = s
-        .chars()
-        .enumerate() // gives us (index, char) tuples
-        .filter(|(index, _)| !positions.contains(index))
-        .map(|(_, char)| char)
-        .collect();
-            
-    filtered_s
-}
-
-fn drop_bases_all_kmers(strs: &Vec<String>, positions: &Vec<usize>) -> Vec<String> {
-    strs.iter().map(|s| drop_bases(s.to_string(), positions)).collect()
-}
-    
-
-    // check if the k-mers in a hetmer actually differ
-    fn verify_muts_at_pos(strs: &Vec<String>, positions: &[usize]) -> bool {
-
-        let byte_strs: Vec<&[u8]> = strs.iter().map(|s| s.as_bytes()).collect();
-
-        positions.iter().all(|&pos| {
-            let mut seen = std::collections::HashSet::new();
-            for b in byte_strs.iter() {
-                seen.insert(b[pos]);
-            }
-            seen.len() == byte_strs.len() // All must differ
-        })
-    }
-    
-    
 // test functions
 #[cfg(test)]
 mod units {

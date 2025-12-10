@@ -93,6 +93,8 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 - [ ] add q-mers?
 
+- [x] drop variants at tip of chromosome
+
 - [x] trim beginning of sequence so that variants within k bp of chromosome start can be included
 
 - [x] for ref-dedup, what to do if there are chromosomes in fasta that have no variants in vcf? 
