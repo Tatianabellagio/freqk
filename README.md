@@ -81,6 +81,8 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
+- [ ] debug ref-dedup: some variants with 0 reference allele-specific k-mers end up with a count of 1 at the end of ref-dedup, but don't actually have a reference-allele-specific k-mer in the index -> will probably lead to some allele frequencies being 0 instead of nan
+
 - [ ] debug ref-dedup: variants near chromosome ends need two regions extracted, region prior to the variant and the region between the variant and chromsome tip
 
 - [ ] add typical counting speed
