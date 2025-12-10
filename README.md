@@ -81,17 +81,19 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
+- [ ] debug ref-dedup: variants near chromosome ends need two regions extracted, region prior to the variant and the region between the variant and chromsome tip
+
 - [ ] add typical counting speed
 
 - [ ] add unit tests
 
 - [ ] add methods to structs
 
-- [ ] hash info for variants so that you skip duplicates?
-
 - [ ] cleanup hetmers subcommand
 
 - [ ] add q-mers?
+
+- [x] hash info for variants so that you skip duplicates?
 
 - [x] drop variants at tip of chromosome
 
