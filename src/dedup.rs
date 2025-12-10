@@ -69,7 +69,7 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
         let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
         log::debug!("Alleles: {:?}", alleles_list);
         // get reference allele length to adjust jumps between iterations
-        let ref_allele_len = (alleles_list[0].len() as i64);
+        let ref_allele_len = alleles_list[0].len() as i64;
         log::debug!("Reference allele length: {}", ref_allele_len);
         // until you reach the end of the next file, peek at the next vcf record and see if it
         // overlaps with the current record, if there is an overlap then skip both this and the
@@ -80,7 +80,7 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
             log::debug!("Next record is CHROM: {} POS: {}", chrom_next, pos_next);
-            if ((end - start) <= k) {
+            if (end - start) <= k {
                 log::debug!("Current region < k bp (CHROM {} POS: {} - CHROM: {} POS: {}), so skipping region", chrom, start, chrom, pos);
                 start = pos + k + ref_allele_len;
                 //vcf_iterator.next();
@@ -88,14 +88,14 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
             }
             if chrom != chrom_next {
                 log::debug!("Chromosome boundry reached between CHROM: {} POS: {} and CHROM: {} POS: {}", chrom, pos, chrom_next, pos_next);
-            //    if let Some(chrom_end) = chrom_lengths.as_ref().expect("Error reading chromosome lengths").get(chrom) {
-            //        log::debug!("Extracting sequence from POS: {} to end of {} at : {:?}", pos, chrom, chrom_end);
-            //        faidx.fetch(chrom, (pos + k).try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
+                if let Some(chrom_end) = chrom_lengths.as_ref().expect("Error reading chromosome lengths").get(chrom) {
+                    log::debug!("Extracting sequence from POS: {} to end of {} at : {:?}", pos, chrom, chrom_end);
+                    faidx.fetch(chrom, (pos + k + ref_allele_len).try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
                     start = 1; // start counter over at beginning of next chromosome
-            //    } else {
-            //        log::error!("Error getting length of chromosome");
-            //        panic!();
-            //    }
+                } else {
+                    log::error!("Error getting length of chromosome");
+                    panic!();
+                }
             } else {
                 log::debug!("Extracting sequence on {} from {} to {}", chrom, start, end);
                 faidx.fetch(chrom, start.try_into().unwrap(), end.try_into().unwrap()).expect("Could not fetch interval");
