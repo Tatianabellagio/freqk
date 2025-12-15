@@ -47,10 +47,25 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
         //
         log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
         log::debug!("Current region start: {}", start);
+        // extracting allele sequences to get reference allele length
+        log::debug!("Extracting allele sequences from VCF...");
+        let mut alleles = String::new();
+        for allele in record.alleles() {
+            for c in allele {
+                alleles.push(char::from(*c))
+             }
+            alleles.push(' ')
+        }
+        // Split the string by whitespace and collect into a Vec<&str>
+        let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
+        log::debug!("Alleles: {:?}", alleles_list);
+        // get reference allele length to adjust jumps between iterations
+        let ref_allele_len = alleles_list[0].len() as i64;
+        log::debug!("Reference allele length: {}", ref_allele_len);
         // if 
         if (pos - start) < k {
             log::warn!("Current variant (CHROM: {} POS: {}) within k bp of region start ({}), so skipping", chrom, pos, start);
-            start = pos + k;
+            start = pos + k + (ref_allele_len - 1);
             continue
         }
         // until you reach the end of the next file, peek at the next vcf record and see if it
@@ -85,23 +100,23 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
                         ref_kmers_hashset.insert(ref_kmer);
                     }
                     log::debug!("Second, extracting sequence from POS: {} to end of {} at : {:?}", pos, chrom, chrom_end);
-                    if (pos + k) >= *chrom_end {
-                        log::debug!("POS within k bp of chrom end, skipping");
-                        start = 1;
+                    start = pos + k + (ref_allele_len - 1);
+                    if start >= *chrom_end {
+                        log::debug!("Start exceeds chrom end, skipping");
+                        start = 1; // start over at beginning of next chrom
                         continue
-                    } else if (pos + k) < *chrom_end {
-                        log::debug!("POS not within k bp of chrom end, extracting");
-                        faidx.fetch(chrom, (pos + k).try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
+                    } else if start < *chrom_end {
+                        log::debug!("start within k bp of chrom end, extracting");
+                        faidx.fetch(chrom, start.try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
                         start = 1; // start counter over at beginning of next chromosome
                     }
                 } else {
                     log::error!("Error getting length of chromosome");
                 }
             } else {
-                // move the pointer in the index to the desired sequence and interval
                 log::debug!("Extracting sequence: {}:{}-{}", chrom, start, end);
                 faidx.fetch(chrom, start.try_into().unwrap(), end.try_into().unwrap()).expect("Could not fetch interval");
-                start = pos + k;
+                start = pos + k + (ref_allele_len - 1);
             }
         } else {
             log::debug!("No next record, so end of VCF reached. Grab remainder of chromosome");
@@ -122,10 +137,11 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
                     ref_kmers_hashset.insert(ref_kmer);
                 }
                 log::debug!("Second, attempting to extract sequence from POS: {} to end of {} at : {:?}", pos, chrom, chrom_end);
-                if (pos + k) >= *chrom_end {
+                start = pos + k + (ref_allele_len - 1);
+                if start >= *chrom_end {
                     log::debug!("POS within k bp of chrom end, breaking loop");
                     break
-                } else if (pos + k) < *chrom_end {
+                } else if start < *chrom_end {
                     log::debug!("POS not within k bp of chrom end, extracting");
                     faidx.fetch(chrom, (pos + k).try_into().unwrap(), *chrom_end as u64 ).expect("Could not fetch interval");
                     start = 1; // start counter over at beginning of next chromosome
