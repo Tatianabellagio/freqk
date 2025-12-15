@@ -108,13 +108,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
             if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
-                log::debug!("Current variant (CHROM: {} POS: {}) overlaps next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
-                if pos_next - pos <= 1 {
-                    log::warn!("Current and next variant are adjacent, so skipping");
-                    continue
-                } else {
-                    region_end = pos_next;
-                }
+                log::debug!("Current variant (CHROM: {} POS: {}) within k bp of next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
+                region_end = pos_next - 1;
             }
             if (pos_next - pos_prev <= *k) && (chrom_next == chrom_prev) {
                 log::warn!("Current variant (CHROM: {} POS: {}) is within k bp of previous and next variant. Skipping current variant.", chrom, pos);
@@ -127,7 +122,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         if ((pos - pos_prev) <= *k) && (chrom == chrom_prev) {
             log::debug!("Current variant (CHROM: {} POS: {}) overlaps previous variant (CHROM: {} POS: {}).", chrom, pos, chrom_prev, pos_prev);
             region_start = pos_prev + 1;
-            ku = (pos - pos_prev) as usize;
+            ku = (pos - pos_prev + 1) as usize;
         }
         // construct sequences for alleles
         log::debug!("Extracting allele sequences from VCF...");
@@ -147,7 +142,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             continue
         }
         // move the pointer in the index to the desired sequence and interval
-        log::debug!("Fetching region: {} - {}", region_start, region_end);
+        log::debug!("Fetching sequence {}:{}-{} from FASTA...", chrom, region_start, region_end);
         faidx.fetch(chrom, region_start.try_into().unwrap(), region_end.try_into().unwrap() ).expect("Couldn't fetch interval");
         // read the subsequence defined by the interval into a vector
         let mut seq = Vec::new();
