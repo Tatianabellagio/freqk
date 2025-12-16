@@ -203,14 +203,11 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
 
 // open index and remove k-mers found in reference
 pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<String>) -> Result<Vec<Vec<Vec<String>>>, io::Error> {
-
     log::info!("Opening index...");
     // open index
     let file = File::open(index)?;
     let reader = BufReader::new(file);
-
     let mut data = Vec::new();
-
     for line_result in reader.lines() {
         let line = line_result?; // Handle potential errors reading the line
         let fields: Vec<&str> = line.split(',').collect();
@@ -224,7 +221,6 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
 
         data.push(kmers_by_allele);
     }
-
     log::info!("Removing k-mers found in non-variable sequences...");
     // remove any k-mers found in reference
     for inner_vec in &mut data {
@@ -232,7 +228,6 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
             inner_inner_vec.retain(|s| !ref_hashset.contains(s));
         }
     }
-
     // output file
     log::info!("Writing new index...");
     let mut buffered_file = BufWriter::new(File::create(output)?);
@@ -245,7 +240,7 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
         let line = line_result?; // Handle potential errors reading the line
         let fields: Vec<&str> = line.split(',').collect();
         let dedup_kmers = &data[i];
-        let num_kmers_per_allele = dedup_kmers.into_iter().map( |inner_vec| inner_vec.len().to_string()).collect::<Vec<String>>().join("|");
+        let num_kmers_per_allele = dedup_kmers.into_iter().map( |inner_vec| if (*inner_vec == vec![""]){ "0".to_string() } else{ inner_vec.len().to_string() }).collect::<Vec<String>>().join("|");
         let dedup_string = dedup_kmers.into_iter().map(|inner_vec| inner_vec.join(";")).collect::<Vec<String>>().join("|");
         let parts = vec![fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], &num_kmers_per_allele, &dedup_string];
         writeln!(buffered_file, "{}", parts.join(","))?;
