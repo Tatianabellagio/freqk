@@ -107,22 +107,29 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             let next_result = next_ref.as_ref().unwrap();
             let pos_next = next_result.pos() - 1;
             let chrom_next = next_result.contig();
-            if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
-                log::debug!("Current variant (CHROM: {} POS: {}) within k bp of next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
-                region_end = pos_next - 1;
-            }
             if (pos_next - pos_prev <= *k) && (chrom_next == chrom_prev) {
-                log::warn!("Current variant (CHROM: {} POS: {}) is within k bp of previous and next variant. Skipping current variant.", chrom, pos);
+                log::warn!("Current variant (CHROM: {} POS: {}) within k bp of previous and next variant. Skipping current variant.", chrom, pos);
                 pos_prev = pos;
                 chrom_prev = chrom.to_string();
                 continue
             }
+            if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
+                log::debug!("Current variant (CHROM: {} POS: {}) within k bp of next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
+                if (pos_next - pos) <= 1 {
+                    log::warn!("Current variant adjacent to next variant (CHROM: {} POS: {}). Skipping current variant (CHROM: {} POS: {}).", chrom, pos, chrom_next, pos_next);
+                    pos_prev = pos;
+                    chrom_prev = chrom.to_string();
+                    continue
+                } else {
+                    region_end = pos_next;
+                }
+            }
         }
         // check if current variant overlaps with the variant behind it
         if ((pos - pos_prev) <= *k) && (chrom == chrom_prev) {
-            log::debug!("Current variant (CHROM: {} POS: {}) overlaps previous variant (CHROM: {} POS: {}).", chrom, pos, chrom_prev, pos_prev);
+            log::debug!("Current variant (CHROM: {} POS: {}) within k bp previous variant (CHROM: {} POS: {}).", chrom, pos, chrom_prev, pos_prev);
             region_start = pos_prev + 1;
-            ku = (pos - pos_prev + 1) as usize;
+            ku = (pos - pos_prev) as usize;
         }
         // construct sequences for alleles
         log::debug!("Extracting allele sequences from VCF...");
