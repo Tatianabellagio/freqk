@@ -56,10 +56,29 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         let pos = record.pos() - 1;
         let chrom = record.contig();
         let mut ku = *k as usize;
-        log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
+        //log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
+        // construct sequences for alleles
+        log::debug!("Extracting allele sequences for CHROM: {} POS: {}...", chrom, pos);
+        let mut alleles = String::new();
+        for allele in record.alleles() {
+            for c in allele {
+                alleles.push(char::from(*c))
+             }
+            alleles.push(' ')
+        }
+        // Split the string by whitespace and collect into a Vec<&str>
+        let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
+        log::debug!("Alleles: {:?}", alleles_list);
+        // check if site is not variable
+        if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
+            log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
+            continue
+        }
         // get putative region, but check edge cases
+        let ref_allele_len = alleles_list[0].len();
         let mut region_start = pos - k + 1;
-        let mut region_end = pos + k;
+        let mut region_end = pos + k + (ref_allele_len as i64);
+        log::debug!("Putative variant region: {}-{}", region_start, region_end);
         // check if this variant position was found in previous iteration
         let chrom_pos_str = pos.to_string() + "-" + chrom;
         log::debug!("Checking for duplicate: {:?}", chrom_pos_str);
@@ -69,7 +88,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         }
         dup_tracker.insert(chrom_pos_str);
         // check if variant is at tip of chromosome
-        if pos < 1 {
+        if pos <= 1 {
             log::warn!("Skipping variant at tip of chromosome: CHROM: {}, POS: {}", chrom, pos);
             continue
         }
@@ -86,10 +105,13 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
                 log::warn!("Chromosome shorter than k, skipping CHROM: {} POS: {}", chrom, pos);
                 continue
             }
-            if pos >= (end - k){
+            if pos >= (end - k - (ref_allele_len as i64)) {
+                log::warn!("Reference allele overlaps with chromosome end. Skipping current variant.");
+                continue
+            } else if pos >= (end - k){
                 log::debug!("Variant near chromosome end detected, CHROM: {} POS: {}", chrom, pos);
                 region_end = end;
-                ku = (*k + 4) as usize;
+                ku = *k as usize;
             }
         } else {
             log::warn!("Warning: {} not found in .fa.fai file! Thus, will skip CHROM: {} POS: {}", chrom, chrom, pos);
@@ -98,7 +120,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         if pos <= *k {
             log::debug!("Variant near chromosome start detected, CHROM: {} POS: {}", chrom, pos);
             region_start = 1;
-            ku = (pos + 4) as usize;
+            ku = pos as usize;
         }
         // until you reach the end of the next file, peek at the next vcf record and see if it
         // overlaps with the current record, if there is an overlap then skip both this and the
@@ -115,8 +137,8 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             }
             if ((pos_next - pos) <= *k)  && (chrom == chrom_next) {
                 log::debug!("Current variant (CHROM: {} POS: {}) within k bp of next variant (CHROM: {} POS: {})", chrom, pos, chrom_next, pos_next);
-                if (pos_next - pos) <= 1 {
-                    log::warn!("Current variant adjacent to next variant (CHROM: {} POS: {}). Skipping current variant (CHROM: {} POS: {}).", chrom, pos, chrom_next, pos_next);
+                if (pos_next - pos) <= ref_allele_len.try_into().unwrap() {
+                    log::warn!("Current variant overlaps next variant. Skipping current variant");
                     pos_prev = pos;
                     chrom_prev = chrom.to_string();
                     continue
@@ -132,22 +154,22 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             ku = (pos - pos_prev) as usize;
         }
         // construct sequences for alleles
-        log::debug!("Extracting allele sequences from VCF...");
-        let mut alleles = String::new();
-        for allele in record.alleles() {
-            for c in allele {
-                alleles.push(char::from(*c))
-             }
-            alleles.push(' ')
-        }
+        //log::debug!("Extracting allele sequences from VCF...");
+        //let mut alleles = String::new();
+        //for allele in record.alleles() {
+        //    for c in allele {
+        //        alleles.push(char::from(*c))
+        //     }
+        //    alleles.push(' ')
+        //}
         // Split the string by whitespace and collect into a Vec<&str>
-        let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
-        log::debug!("Alleles: {:?}", alleles_list);
+        //let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
+        //log::debug!("Alleles: {:?}", alleles_list);
         // check if site is not variable
-        if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
-            log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
-            continue
-        }
+        //if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
+        //    log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
+        //    continue
+        //}
         // move the pointer in the index to the desired sequence and interval
         log::debug!("Fetching sequence {}:{}-{} from FASTA...", chrom, region_start, region_end);
         faidx.fetch(chrom, region_start.try_into().unwrap(), region_end.try_into().unwrap() ).expect("Couldn't fetch interval");
@@ -159,7 +181,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         log::debug!("Sequence length: {}", seq_string.chars().count());
         // insert alleles into reference sequence to get variable sequences 
         let mut var_seqs = Vec::new();
-        let ref_allele_len = alleles_list[0].len();
+        //let ref_allele_len = alleles_list[0].len();
         log::debug!("Replace range from start: {} end: {}", ku, ku+ref_allele_len);
         for allele in &alleles_list {
             let mut var_seq = seq_string.clone();
