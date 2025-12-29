@@ -170,6 +170,12 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         //    log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
         //    continue
         //}
+        if (region_end - region_start) < *k {
+            log::warn!("Reference region < k bp. Skipping current variant");
+            pos_prev = pos;
+            chrom_prev = chrom.to_string();            
+            continue
+        }
         // move the pointer in the index to the desired sequence and interval
         log::debug!("Fetching sequence {}:{}-{} from FASTA...", chrom, region_start, region_end);
         faidx.fetch(chrom, region_start.try_into().unwrap(), region_end.try_into().unwrap() ).expect("Couldn't fetch interval");

@@ -54,7 +54,8 @@ fn elementwise_division_2d(vec_a: &Vec<Vec<u32>>, vec_b: &Vec<Vec<u32>>) -> Resu
                     if b == 0 {
                         // if we divide by zero, just replace zero so that results are NaN
                         log::warn!("Division by zero detected because there are zero allele-specific k-mers for a particular variant (frequency estimate will be NaN).");
-                        0 as f32
+                        //0 as f32
+                        f32::NAN
                     } else {
                         (a as f32)/(b as f32)
                     }

@@ -81,13 +81,13 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
-- [ ] debug ref-dedup
+- [x] debug ref-dedup
 
 - [x] include reference lengths in decision of what sequence to extract: start --- k --- REF length --- k --- end 
 
 - [ ] how are N's handeled?
 
-- [ ] index, if variant is within k bp of previous and next variant, also check the allele lengths, if the total length is < k bp, then you should still be able to extract k-mers? 
+- [ ] index, if variant is within k bp of previous and next variant, also check the allele lengths, if the total length is > k bp, then you should still be able to extract k-mers? 
 
 - [x] debug ref-dedup: some variants with 0 reference allele-specific k-mers end up with a count of 1 at the end of ref-dedup, but don't actually have a reference-allele-specific k-mer in the index -> will probably lead to some allele frequencies being 0 instead of nan
 

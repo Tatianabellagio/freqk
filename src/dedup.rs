@@ -247,7 +247,7 @@ pub fn remove_ref_kmers(index: &String, output: &String, ref_hashset: HashSet<St
         let line = line_result?; // Handle potential errors reading the line
         let fields: Vec<&str> = line.split(',').collect();
         let dedup_kmers = &data[i];
-        let num_kmers_per_allele = dedup_kmers.into_iter().map( |inner_vec| if (*inner_vec == vec![""]){ "0".to_string() } else{ inner_vec.len().to_string() }).collect::<Vec<String>>().join("|");
+        let num_kmers_per_allele = dedup_kmers.into_iter().map( |inner_vec| if *inner_vec == vec![""] { "0".to_string() } else{ inner_vec.len().to_string() }).collect::<Vec<String>>().join("|");
         let dedup_string = dedup_kmers.into_iter().map(|inner_vec| inner_vec.join(";")).collect::<Vec<String>>().join("|");
         let parts = vec![fields[0], fields[1], fields[2], fields[3], fields[4], fields[5], &num_kmers_per_allele, &dedup_string];
         writeln!(buffered_file, "{}", parts.join(","))?;
