@@ -62,7 +62,13 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
         // get reference allele length to adjust jumps between iterations
         let ref_allele_len = alleles_list[0].len() as i64;
         log::debug!("Reference allele length: {}", ref_allele_len);
-        // if 
+        // skip the very beginning of each chromosome
+        if pos <= 1 {
+            log::warn!("Skipping current variant (CHROM: {} POS: {}) because its at the beginning of the chromosome", chrom, pos);
+            start = 1 + k + (ref_allele_len - 1);
+            continue
+        }
+        // skip regions where there's < k bp of room between the start and the variant site
         if (pos - start) < k {
             log::warn!("Current variant (CHROM: {} POS: {}) within k bp of region start ({}), so skipping", chrom, pos, start);
             start = pos + k + (ref_allele_len - 1);
@@ -112,6 +118,7 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
                     }
                 } else {
                     log::error!("Error getting length of chromosome");
+                    panic!();
                 }
             } else {
                 log::debug!("Extracting sequence: {}:{}-{}", chrom, start, end);
