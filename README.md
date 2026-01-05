@@ -101,9 +101,11 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
-- [ ] bug for variants within k of chromosome start?
+- [ ] bug for variants within k of chromosome start? Why doesn't test data work anymore?
 
-- [ ] convert non-ATGC to N, and lowercase to uppercase
+- [ ] index: convert non-ATGC to N, and lowercase to uppercase
+
+- [x] index: skip k-mers with non-ATGC chars
 
 - [x] debug ref-dedup
 
