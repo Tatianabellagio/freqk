@@ -25,7 +25,7 @@ fn find_dup_kmers(mut data: Vec<Vec<String>>) -> Vec<Vec<String>> {
         .map(|(key, _value)| key) // get only the keys
         .collect(); // Collect the keys into a Vec
     let dup_kmers_hashset: HashSet<String> = dup_kmers.into_iter().collect();
-    // second pass: remove any k-mers that were duplicated
+    // second pass: remove any k-mers that were found more than once
     for inner_vec in &mut data {
         inner_vec.retain(|s| !dup_kmers_hashset.contains(s));
     }

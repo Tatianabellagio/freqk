@@ -16,21 +16,37 @@ Grab rust binary from release page
 
 1. Reference sequence in fasta format
 
+* only letters ATGCN
+
+* chromosome names that match VCF file
+
 2. Index of fasta file `samtools faidx <ref fasta>`
 
 3. VCF file of variants called against reference, should be 
+
+* only letters ATGCN
+
+* chromosome names that match FASTA file
 
 * sorted
 
 * bgzipped
 
-* normalized (variants at same position are represented as one multiallelic record)
+* normalized (variants at same position are represented as one multiallelic record) `bcftools norm -m +any`
 
 * genome-wide
 
-4. Index of vcf file
+4. Index of vcf file `tabix myfile.vcf.gz`
 
-5. Pooled DNA sequencing reads in a single fastq file (read pairing does not matter)
+5. Pooled DNA sequencing reads in a single fastq file 
+
+* read pairing does not matter
+
+```
+zcat r1.fastq.gz r2.fastq.gz u.fastq.gz > all.fastq
+
+cat r1.fastq r2.fastq u.fastq > all.fastq
+```
 
 ## Outputs
 
@@ -43,7 +59,11 @@ Estimates of allele frequencies for variants in the vcf file. These are output i
 0.3|0.5|0.2
 ```
 
-The number of alleles per site varies, so the number of entries per line varies. If you want to load this file in R. You can do something like the following
+### Reading outputs into R for further analysis
+
+The number of alleles per site varies, so the number of entries per line varies. If you want to load this file in R. You can do something like the following:
+
+Merge the index with the allele frequncy estimates
 
 ## Quick start
 
@@ -81,11 +101,17 @@ All commands have a verbosity flag. Only errors are output by default, but addin
 
 ## To-do
 
+- [ ] bug for variants within k of chromosome start?
+
+- [ ] convert non-ATGC to N, and lowercase to uppercase
+
 - [x] debug ref-dedup
 
 - [x] include reference lengths in decision of what sequence to extract: start --- k --- REF length --- k --- end 
 
-- [ ] how are N's handeled?
+- [x] how are N's handeled?
+
+- [x] how are non ATGC-handeled?
 
 - [ ] index, if variant is within k bp of previous and next variant, also check the allele lengths, if the total length is > k bp, then you should still be able to extract k-mers? 
 

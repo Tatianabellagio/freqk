@@ -60,25 +60,48 @@ pub fn read_fai(fasta_path: &String) -> Result<HashMap<String, i64>, Box<dyn std
     Ok(chrom_lengths)
 }
 
+// standardize sequence
+// remove lowercase and non-ATGC characters
+pub fn stand_seq(input: &str) -> String {
+    input.chars().map(|c|
+        match c {
+            'A' => c,
+            'T' => c,
+            'C' => c,
+            'G' => c,
+            'a' => 'A',
+            't' => 'T',
+            'c' => 'C',
+            'g' => 'G',
+            _ => 'N',
+        }
+    ).collect()
+}
+
 // slide window of k bases through sequence
 // get reverse complements
 // keep lexicographically sooner k-mer for each pair
 pub fn get_canonical_kmers(sequence: &str, k: usize) -> Vec<String> {
     let mut canonical_kmers = Vec::new();
-
+    // Handle bad kmer length
     if k == 0 || k > sequence.len() {
         return canonical_kmers; // Handle invalid k-mer length
     }
-
+    // slide window through sequence
     for i in 0..=(sequence.len() - k) {
         let kmer_slice = &sequence[i..i + k];
-        let reverse_complement = reverse_complement(kmer_slice);
-
-        // Compare lexicographically to find the canonical k-mer
-        if kmer_slice < reverse_complement.as_str() {
-            canonical_kmers.push(kmer_slice.to_string());
+        // skip k-mers containing non-ATGC (N and other iupac letters)
+        if kmer_slice.chars().all(|c| "ATGC".contains(c)) {
+            // reverse complement
+            let reverse_complement = reverse_complement(kmer_slice);
+            // Compare lexicographically to find the canonical k-mer
+            if kmer_slice < reverse_complement.as_str() {
+                canonical_kmers.push(kmer_slice.to_string());
+            } else {
+                canonical_kmers.push(reverse_complement.to_string());
+            }
         } else {
-            canonical_kmers.push(reverse_complement.to_string());
+            continue
         }
     }
     canonical_kmers
