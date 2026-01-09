@@ -33,4 +33,6 @@ jobs:
           # To report GitHub Actions status checks
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_RUST_2021: true
+          VALIDATE_RUST_2024: true
           FIX_RUST_2021: true
+          FIX_RUST_2024: true
