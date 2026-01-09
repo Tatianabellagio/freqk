@@ -183,7 +183,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         let mut seq = Vec::new();
         faidx.read(&mut seq).expect("Couldn't read the interval");
         // convert to string
-        let seq_string = String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence");
+        let seq_string = common::stand_seq(&String::from_utf8(seq.to_vec()).expect("Invalid UTF-8 sequence"));
         log::debug!("Sequence length: {}", seq_string.chars().count());
         // insert alleles into reference sequence to get variable sequences 
         let mut var_seqs = Vec::new();
@@ -191,7 +191,7 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         log::debug!("Replace range from start: {} end: {}", ku, ku+ref_allele_len);
         for allele in &alleles_list {
             let mut var_seq = seq_string.clone();
-            var_seq.replace_range(ku..ku+ref_allele_len, allele);
+            var_seq.replace_range(ku..ku+ref_allele_len, &common::stand_seq(allele));
             var_seqs.push(var_seq);
         }
         // check if REF allele matches fasta file

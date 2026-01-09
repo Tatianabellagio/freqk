@@ -147,4 +147,3 @@ pub fn write_strings(strings: Vec<String>, output: &String) -> io::Result<()>{
     }
     Ok(())
 }
-
