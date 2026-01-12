@@ -121,3 +121,17 @@ pub fn call_from_counts(index: &String, counts: &String, output: &String) -> Res
     allele_freq.write(output);
     Ok(())
 }
+
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn test_elementwise_division_2d() {
+        let test_kmer_counts_per_allele = vec![vec![55, 11], vec![22, 10]];
+        let test_num_uniq_kmers_per_allele = vec![vec![10,4], vec![2, 20]];
+        let expected = vec![vec![5.5, 2.75], vec![11.0, 0.5]];
+        let result = elementwise_division_2d(&test_kmer_counts_per_allele, &test_num_uniq_kmers_per_allele);
+        assert_eq!(result.unwrap(), expected);
+    }
+}
