@@ -1,10 +1,12 @@
 use clap::{Parser, Subcommand};
+use itertools::izip;
 
 mod common;
 mod index;
 mod dedup;
 mod count;
 mod call;
+mod hetmers;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -79,6 +81,38 @@ enum Commands {
         #[command(flatten)]
         verbosity: clap_verbosity_flag::Verbosity,
     },
+    /// Count het-mers
+    Hetmers {
+        /// kmer count table file name
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        inputs: Vec<String>,
+        /// prefix for output files
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        outputs: Vec<String>,
+        /// minimum k-mer count
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        minimums: Vec<usize>,
+        /// number of alleles in each hetmer
+        #[arg(short = 'l', long, default_value_t = 2)]
+        alleles: usize,
+        /// mean k-mer coverage
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        coverages: Vec<f64>,
+        /// pool size
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        pools: Vec<i32>,
+        /// shape parameter for prior distribution
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        alphas: Vec<f64>,
+        /// shape parameter for prior distribution
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        betas: Vec<f64>,
+        /// thresholds for determining if k-mer has abnormal copy number
+        #[arg(short, long, num_args = 1.., value_delimiter = ' ', required = true)]
+        sigmas: Vec<f64>,
+        #[command(flatten)]
+        verbosity: clap_verbosity_flag::Verbosity,
+    }
 }
 
 // bring it all together!
@@ -115,6 +149,13 @@ fn main() {
             verbosity.log_level_filter();
             log::info!("Converting counts to allele frequencies: {} {} {}", index, counts, output);
             let _ = call::call_from_counts(index, counts, output);
+        }
+        Commands::Hetmers { inputs, outputs, minimums, alleles, coverages, pools, alphas, betas, sigmas, verbosity } => {
+            verbosity.log_level_filter();
+            log::info!("Finding hetmers in k-mer counts");
+            for (input, output, minimum, coverage, pool, alpha, beta, sigma) in izip!(inputs, outputs, minimums, coverages, pools, alphas, betas, sigmas) {
+                hetmers::kmers_to_hetmers(input, output, *minimum, *alleles, *pool, *coverage, *alpha, *beta, *sigma);
+            }
         }
     }
 }
