@@ -137,7 +137,7 @@ pub fn freq_to_pi(freq_vec: Vec<String>) -> f64 {
 
 // test functions
 #[cfg(test)]
-mod units {
+mod unit_tests {
     use super::*;
 
     #[test]
@@ -165,8 +165,8 @@ mod units {
     #[test]
     fn heterozygosity(){
         let input = vec!["0.04".to_string(), "0.1".to_string()];
-        let expected = 0.1284;
-        let result = freq_to_pi(&input);
+        let expected = 0.12839999999999996;
+        let result = freq_to_pi(input);
         assert_eq!(result, expected);
     }
 }

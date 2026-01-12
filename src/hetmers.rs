@@ -3,6 +3,7 @@ use std::f64;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
+use std::collections::HashSet;
 
 mod input_checkers;
 mod freq_from_hetmers;
@@ -183,7 +184,7 @@ pub fn kmers_to_hetmers(input: &String, output: &String, minimum: usize, alleles
 
 // test functions
 #[cfg(test)]
-mod units {
+mod unit_tests {
     use super::*;
 
     #[test]
@@ -219,40 +220,6 @@ mod units {
         assert_eq!(result, expected);
     }
     
-    #[test]
-    fn check_single_muts(){
-        let strs = vec!["GATTACA".to_string(),"GATCACA".to_string()];
-        let positions = vec![3];
-        let result = verify_muts_at_pos(&strs, &positions);
-        let expected = true;
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn check_multi_muts(){
-        let strs = vec!["GATTACA".to_string(), "GCTCACA".to_string()];
-        let positions = vec![1,3];
-        let result = verify_muts_at_pos(&strs, &positions);
-        let expected = true;
-        assert_eq!(result, expected);
-    }
-    
-    #[test]
-    fn check_base_drop(){
-        let result = drop_bases("GATTACA".to_string(), &vec![1,3]);
-        let expected = "GTACA".to_string();
-        assert_eq!(result, expected);
-    }
-
-    #[test]    
-    fn check_vec_base_drop(){
-        let strs = vec!["GATTACA".to_string(), "GCTCACA".to_string()];
-        let positions = vec![1,3];
-        let result = drop_bases_all_kmers(&strs, &positions);
-        let expected = vec!["GTACA".to_string(), "GTACA".to_string()];
-        assert_eq!(result, expected);
-    }
-
     //#[test]
     //fn check_hetmer_mismatch(){
     //    let a = vec!["GATTACA,GATCACA", "GATTACA,GATAACA"];

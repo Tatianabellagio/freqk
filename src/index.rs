@@ -56,7 +56,6 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
         let pos = record.pos() - 1;
         let chrom = record.contig();
         let mut ku = *k as usize;
-        //log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
         // construct sequences for alleles
         log::debug!("Extracting allele sequences for CHROM: {} POS: {}...", chrom, pos);
         let mut alleles = String::new();
@@ -153,23 +152,6 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
             region_start = pos_prev + 1;
             ku = (pos - pos_prev) as usize;
         }
-        // construct sequences for alleles
-        //log::debug!("Extracting allele sequences from VCF...");
-        //let mut alleles = String::new();
-        //for allele in record.alleles() {
-        //    for c in allele {
-        //        alleles.push(char::from(*c))
-        //     }
-        //    alleles.push(' ')
-        //}
-        // Split the string by whitespace and collect into a Vec<&str>
-        //let alleles_list: Vec<&str> = alleles.split_whitespace().collect();
-        //log::debug!("Alleles: {:?}", alleles_list);
-        // check if site is not variable
-        //if (alleles_list[1..alleles_list.len()]).contains(&alleles_list[0]) {
-        //    log::warn!("Invariant site detected, skipping CHROM: {} POS: {}", chrom, pos);
-        //    continue
-        //}
         if (region_end - region_start) < *k {
             log::warn!("Reference region < k bp. Skipping current variant");
             pos_prev = pos;
@@ -226,3 +208,15 @@ pub fn index_workflow(vcf_path: &String, fasta_path: &String, output_path: &Stri
     None
 }
 
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn test_dedup_across_alleles() {
+        let test_vec = vec![vec!["ATGC".to_string(), "AAAA".to_string(), "CCCC".to_string()], vec!["CATG".to_string(), "ATGC".to_string(), "GGCG".to_string()]];
+        let result = find_dup_kmers(test_vec);
+        let expected = vec![vec!["AAAA".to_string(), "CCCC".to_string()], vec!["CATG".to_string(), "GGCG".to_string()]];
+        assert_eq!(result, expected);
+    }
+}

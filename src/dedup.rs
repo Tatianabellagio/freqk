@@ -43,7 +43,7 @@ pub fn reference_hashset(index: &String, fasta_path: &String, vcf_path: &String)
         //track that we visited this chromosome
         chrom_visited.insert(chrom.into());
         // extract up to k bp before variant to avoid removing allele-specific k-mers
-        let mut end = pos - k;
+        let end = pos - k;
         //
         log::debug!("Processing record CHROM: {} POS: {}", chrom, pos);
         log::debug!("Current region start: {}", start);

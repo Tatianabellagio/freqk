@@ -9,32 +9,24 @@ use std::collections::HashMap;
 pub fn k_from_index(index: &String) -> Result<i64, io::Error> {
     // Open the file
     let file = File::open(index)?;
-
     // Create a buffered reader
     let mut reader = BufReader::new(file);
-
     // Create a string to store the first line
     let mut first_line = String::new();
-
     // Read the first line into the string
     reader.read_line(&mut first_line)?;
-
     // parse kmer list
     let split_line: Vec<&str> = first_line.split(',').collect();
     let kmers = split_line[7];
     let kmers_list: Vec<&str> = kmers.split('|').collect();
-
     let kmers_by_allele: Vec<Vec<&str>> = kmers_list
     .iter()
     .map(|s| s.split(';').collect())
     .collect();
-
     // Access the first inner vector
     let first_inner_vec = &kmers_by_allele[0];
-
     // Access the first element of that inner vector
     let first_element = first_inner_vec[0];
-
     return Ok(first_element.len() as i64);
 }
 
@@ -45,10 +37,8 @@ pub fn read_fai(fasta_path: &String) -> Result<HashMap<String, i64>, Box<dyn std
     fai_path.push_str(".fai");
     let file = File::open(fai_path)?;
     let reader = BufReader::new(file);
-
     // HashMap to store chrom lengths
     let mut chrom_lengths: HashMap<String, i64> = HashMap::new();
-
     // loop over file and get
     for line_result in reader.lines() {
         let line = line_result?; // Handle potential errors reading the line
@@ -146,4 +136,34 @@ pub fn write_strings(strings: Vec<String>, output: &String) -> io::Result<()>{
         writeln!(file, "{}", string)?;
     }
     Ok(())
+}
+
+
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    #[test]
+    fn test_stand_seq() {
+        let test_seq = "ATGWATGAaAGCCcCCNC";
+        let result = stand_seq(test_seq);
+        let expected = "ATGNATGAAAGCCCCCNC";
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_reverse_complement() {
+        let test_seq = "ATGCCAGTTAACA";
+        let result = reverse_complement(test_seq);
+        let expected = "TGTTAACTGGCAT";
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_canonical_kmers() {
+        let test_seq = "ATGCCAGTTAACA";
+        let result = get_canonical_kmers(test_seq, 10);
+        let expected = vec!["ATGCCAGTTA", "TGCCAGTTAA", "GCCAGTTAAC", "CCAGTTAACA"];
+        assert_eq!(result, expected);
+    }
 }
