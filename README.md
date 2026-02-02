@@ -63,6 +63,22 @@ Merge the index with the allele frequncy estimates
 
 ## Quick start
 
+```bash
+# download repo
+git clone https://github.com/milesroberts-123/freqk.git
+cd freqk
+# try freqk on small test dataset
+freqk index -f tests/test.fasta --vcf tests/test.vcf.gz -o index.txt -k 31
+freqk var-dedup --index index.txt --output var_index.txt
+freqk ref-dedup -i var_index.txt -o ref_index.txt -f tests/1.fasta --vcf tests/1.vcf.gz
+freqk count -i ref_index.txt -r tests/test.fastq.gz -n 4 -f counts_by_allele.txt -c counts_by_kmer.txt
+freqk call -i ref_index.txt -c counts_by_allele.txt -o calls.txt
+```
+
+If the example was successful, the `md5sum` of the final calls.txt file should be `ea5a558fc94766653a81d604755f04e4`
+
+### Breakdown of quick start steps
+
 1. Index the panel of reference variants
 
 `freqk index -f tests/test.fasta --vcf tests/test.vcf.gz -o index.txt -k 31`
