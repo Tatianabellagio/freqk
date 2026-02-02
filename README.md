@@ -83,7 +83,7 @@ The slower deduplication step is `ref-dedup`. This step removes any allele-speci
 
 For example, counting indexed k-mers with four threads (`-n 4`) looks like this:
 
-`freqk count -i ref_index.txt -r tests/all.fastq.gz -n 4 -f count_by_allele.txt -c count_by_kmer.txt`
+`freqk count -i ref_index.txt -r tests/test.fastq.gz -n 4 -f count_by_allele.txt -c count_by_kmer.txt`
 
 4. Normalize allele-specific k-mer counts into allele frequencies
 
