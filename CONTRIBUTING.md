@@ -2,6 +2,8 @@
 
 ## To-do
 
+- [ ] add file does not exist errors for call subcommand
+
 - [x] bug for variants within k of chromosome start? Why doesn't test data work anymore?
 
 - [x] index: convert non-ATGC to N, and lowercase to uppercase
