@@ -18,9 +18,9 @@ Grab rust binary from release page
 
 * chromosome names that match VCF file
 
-* indexed with `samtools faidx <ref fasta>`
+* indexed with `samtools faidx`
 
-3. VCF file of variants: 
+2. VCF file of variants: 
 
 * REF alleles correspond to sequences in FASTA file 
 
@@ -28,7 +28,7 @@ Grab rust binary from release page
 
 * sorted
 
-* bgzipped
+* bgzipped `bgzip myfile.vcf`
 
 * normalized (variants at same position are represented as one multiallelic record) `bcftools norm -m +any`
 
@@ -65,7 +65,7 @@ Merge the index with the allele frequncy estimates
 
 1. Index the panel of reference variants
 
-`freqk index -f tests/1.fasta --vcf tests/1.vcf.gz -o index.txt -k 31`
+`freqk index -f tests/test.fasta --vcf tests/test.vcf.gz -o index.txt -k 31`
 
 2. (Optional but recommended) Deduplicate index
 
@@ -83,7 +83,7 @@ The slower deduplication step is `ref-dedup`. This step removes any allele-speci
 
 For example, counting indexed k-mers with four threads (`-n 4`) looks like this:
 
-`freqk count -i ref_index.txt -r tests/test.fastq.gz -n 4 -f count_by_allele.txt -c count_by_kmer.txt`
+`freqk count -i ref_index.txt -r tests/test.fastq.gz -n 4 -f counts_by_allele.txt -c counts_by_kmer.txt`
 
 4. Normalize allele-specific k-mer counts into allele frequencies
 
@@ -93,7 +93,7 @@ This step just divides the counts of allele-specific k-mers in the reads by the 
 
 ## Command line interfaces
 
-All commands have a verbosity flag. Only errors are output by default, but adding `-v` will make warnings print, `-vv` means info will also print, and `-vvv` means debug data will print.
+All commands have a verbosity flag. Only errors are output by default, but adding `-v` will make warnings print, `-vv` means info will also print, and `-vvv` means debug data will also print.
 
 ### help
 
