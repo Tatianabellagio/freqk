@@ -14,17 +14,15 @@ Grab rust binary from release page
 
 ## Inputs
 
-1. Reference sequence in fasta format
-
-* only letters ATGCN
+1. FASTA file of reference sequence/path:
 
 * chromosome names that match VCF file
 
-2. Index of fasta file `samtools faidx <ref fasta>`
+* indexed with `samtools faidx <ref fasta>`
 
-3. VCF file of variants called against reference, should be 
+3. VCF file of variants: 
 
-* only letters ATGCN
+* REF alleles correspond to sequences in FASTA file 
 
 * chromosome names that match FASTA file
 
@@ -34,17 +32,15 @@ Grab rust binary from release page
 
 * normalized (variants at same position are represented as one multiallelic record) `bcftools norm -m +any`
 
-* genome-wide
+* Index of vcf file `tabix myfile.vcf.gz`
 
-4. Index of vcf file `tabix myfile.vcf.gz`
-
-5. Pooled DNA sequencing reads in a single fastq file 
-
-* read pairing does not matter
+3. Pooled DNA sequencing reads in a single fastq file. Read pairing information does not matter and reads can be combined like so:
 
 ```
+# for gzip compressed fastq files
 zcat r1.fastq.gz r2.fastq.gz u.fastq.gz > all.fastq
 
+# for uncompressed fastq files
 cat r1.fastq r2.fastq u.fastq > all.fastq
 ```
 
@@ -61,7 +57,7 @@ Estimates of allele frequencies for variants in the vcf file. These are output i
 
 ### Reading outputs into R for further analysis
 
-The number of alleles per site varies, so the number of entries per line varies. If you want to load this file in R. You can do something like the following:
+If the VCF file includes variable number of alleles per site (i.e. not only bi-alleleic sites), then the number of entries per line varies. If you want to load this file in R. You can do something like the following:
 
 Merge the index with the allele frequncy estimates
 
@@ -75,9 +71,9 @@ Merge the index with the allele frequncy estimates
 
 This step can be done in 2 stages. You can do one, both, or neither stages in any order, but generally doing both before proceeding to the counting step (3) is strongly recommended for the most rigorous results.
 
-The faster of the two deduplication steps is `var-dedup`. This simply scans through the index and removes any allele-specific k-mers that are found at other variants in the index. For example:
+The faster of the two deduplication steps is `var-dedup`. This simply scans through the index and removes any putatively allele-specific k-mers that are actually found in multiple alleles of different variants in the index. For example:
 
-`freqk var-dedup --index index.txt --output dedup.txt`
+`freqk var-dedup --index index.txt --output var_index.txt`
 
 The slower deduplication step is `ref-dedup`. This step removes any allele-specific k-mers that are found elsewhere in the reference sequence. 
 
@@ -99,90 +95,42 @@ This step just divides the counts of allele-specific k-mers in the reads by the 
 
 All commands have a verbosity flag. Only errors are output by default, but adding `-v` will make warnings print, `-vv` means info will also print, and `-vvv` means debug data will print.
 
-## To-do
+### help
 
-- [ ] bug for variants within k of chromosome start? Why doesn't test data work anymore?
+```bash
+$ freqk help
+Usage: freqk [OPTIONS] <COMMAND>
 
-- [ ] index: convert non-ATGC to N, and lowercase to uppercase
+Commands:
+  index      Get k-mers specific to each allele of each variant
+  var-dedup  Deduplicate index of k-mers shared across variants
+  count      Count k-mers by allele
+  call       Convert counts by allele into allele frequencies
+  ref-dedup  Deduplicate index of reference k-mers
+  hetmers    Count het-mers
+  help       Print this message or the help of the given subcommand(s)
 
-- [x] index: skip k-mers with non-ATGC chars
+Options:
+  -v, --verbose...  Increase logging verbosity
+  -q, --quiet...    Decrease logging verbosity
+  -h, --help        Print help
+  -V, --version     Print version
+```
 
-- [x] debug ref-dedup
+### index
 
-- [x] include reference lengths in decision of what sequence to extract: start --- k --- REF length --- k --- end 
+```bash
+$ freqk index -h
+Get k-mers specific to each allele of each variant
 
-- [x] how are N's handeled?
+Usage: freqk index [OPTIONS] --fasta <FASTA> --vcf <VCF> --output <OUTPUT> --kmer <KMER>
 
-- [x] how are non ATGC-handeled?
-
-- [ ] index, if variant is within k bp of previous and next variant, also check the allele lengths, if the total length is > k bp, then you should still be able to extract k-mers? 
-
-- [x] debug ref-dedup: some variants with 0 reference allele-specific k-mers end up with a count of 1 at the end of ref-dedup, but don't actually have a reference-allele-specific k-mer in the index -> will probably lead to some allele frequencies being 0 instead of nan
-
-- [ ] add typical counting speed
-
-- [ ] add unit tests
-
-- [ ] add methods to structs
-
-- [ ] cleanup hetmers subcommand
-
-- [ ] add q-mers?
-
-- [x] debug ref-dedup: variants near chromosome ends need two regions extracted, region prior to the variant and the region between the variant and chromsome tip
-
-- [x] hash info for variants so that you skip duplicates?
-
-- [x] drop variants at tip of chromosome
-
-- [x] trim beginning of sequence so that variants within k bp of chromosome start can be included
-
-- [x] for ref-dedup, what to do if there are chromosomes in fasta that have no variants in vcf? 
-
-- [x] ref-dedup, grab chromosome end if there's no next record in vcf
-
-- [x] for ref-dedup, put k-mers into hashset at end of each loop?
-
-- [x] add verbose flag with clap, improve logging: https://rust-cli.github.io/book/tutorial/output.html
-
-- [x] index step, for variants within k bp, only get k-mers that overlap one variant
-
-- [x] skip invariant sites, sites where REF and ALT are the same or there is no ALT information
-
-- [x] get k-mer length from index in ref-dedup
-
-- [x] check that REF allele matches fasta file
-
-- [x] add input checkers, check that vcf is sorted for freqk index
-
-- [x] add filter or warning for when 0 or only a few k-mers tag a variant (if not many k-mers tag a variant and the variant is rare in the pool, then coverage needs to be absurdly high in order to accurately estimate allele frequency)
-
-- [x] parallelize for loop over reads
-
-- [x] remove leftover code
-
-- [x] organize code into modules
-
-- [x] use paraseq instead of fastqrs - paraseq has a conflict that prevents it from working with rusthtslib, also seems to do similarly to fastqrs in benchmarks
-
-- [x] convert counts into allele frequencies
-
-- [x] skip over variants at chromosome ends and overlapping variants 
-
-- [x] check that reference sequence in vcf matches fasta
-
-- [x] var-dedup: add more print messages
-
-- [x] bug: var-dedup, variant at end of one chromosome and start of another chromosome are labeled as overlapping and skipped
-
-- [x] bug: ref-dedup, lots of variants are skipped
-
-- [x] deduplicate: remove any allele-specific k-mers found elsewhere in the reference genome
-
-- [x] dedeuplicate index: remove any k-mers that are shared across variants
-
-- [x] determine k-mer length from index
-
-- [x] when indexing, count number of k-mers for each allele
-
-- [x] for count subcommand: load in k-mers from index as hash set, loop over input reads with a fastx iterator, slide window to get k-mers, only count k-mers if they're in the hash set
+Options:
+  -f, --fasta <FASTA>    fasta file of reference genome
+      --vcf <VCF>        vcf file of variations between reference and other genomes
+  -o, --output <OUTPUT>  name of the index file to be output
+  -k, --kmer <KMER>      kmer length for building the index
+  -v, --verbose...       Increase logging verbosity
+  -q, --quiet...         Decrease logging verbosity
+  -h, --help             Print help
+```
